@@ -6,6 +6,7 @@ extends Node3D
 
 func _ready() -> void:
 	NoiseCheck.run()
+	BoatCheck.run()
 	print("[main] Ukiyo River - %s / %s" % [
 		environment_controller.time_key, environment_controller.weather_key,
 	])

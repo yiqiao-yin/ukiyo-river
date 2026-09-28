@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=14 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/water.gd" id="5_water"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="6_camera"]
 [ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water_shader"]
+[ext_resource type="PackedScene" path="res://scenes/boat.tscn" id="8_boat"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -74,11 +75,16 @@ sun_light = NodePath("../Sun")
 [node name="Terrain" type="MeshInstance3D" parent="."]
 script = ExtResource("4_terrain")
 
-[node name="Water" type="MeshInstance3D" parent="." node_paths=PackedStringArray("environment_controller")]
+[node name="Boat" parent="." node_paths=PackedStringArray("environment_controller") instance=ExtResource("8_boat")]
+environment_controller = NodePath("../EnvironmentController")
+
+[node name="Water" type="MeshInstance3D" parent="." node_paths=PackedStringArray("environment_controller", "boat")]
 mesh = SubResource("PlaneMesh_water")
 material_override = SubResource("ShaderMaterial_water")
 script = ExtResource("5_water")
 environment_controller = NodePath("../EnvironmentController")
+boat = NodePath("../Boat")
 
-[node name="Camera" type="Camera3D" parent="."]
+[node name="Camera" type="Camera3D" parent="." node_paths=PackedStringArray("boat")]
 script = ExtResource("6_camera")
+boat = NodePath("../Boat")

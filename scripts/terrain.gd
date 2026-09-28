@@ -63,7 +63,7 @@ func _build() -> ArrayMesh:
 			indices[n + 5] = c
 			n += 6
 
-	var normals: PackedVector3Array = _compute_normals(vertices, indices)
+	var normals: PackedVector3Array = MeshUtil.compute_normals(vertices, indices)
 
 	for i: int in vertex_count:
 		colors[i] = _vertex_color(vertices[i], normals[i].y)
@@ -78,32 +78,6 @@ func _build() -> ArrayMesh:
 	var array_mesh := ArrayMesh.new()
 	array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return array_mesh
-
-
-## Area-weighted face normals, matching three.js computeVertexNormals().
-func _compute_normals(
-	vertices: PackedVector3Array, indices: PackedInt32Array
-) -> PackedVector3Array:
-	var normals := PackedVector3Array()
-	normals.resize(vertices.size())
-	normals.fill(Vector3.ZERO)
-
-	var i: int = 0
-	while i < indices.size():
-		var ia: int = indices[i]
-		var ib: int = indices[i + 1]
-		var ic: int = indices[i + 2]
-		# With Godot's clockwise front faces this ordering points the normal up out of the
-		# ground rather than down into it (verified against PlaneMesh's own arrays).
-		var face: Vector3 = (vertices[ia] - vertices[ib]).cross(vertices[ic] - vertices[ib])
-		normals[ia] += face
-		normals[ib] += face
-		normals[ic] += face
-		i += 3
-
-	for k: int in normals.size():
-		normals[k] = normals[k].normalized()
-	return normals
 
 
 ## Prototype's per-vertex blend: grass noise, then height, then slope, then mud at the waterline.

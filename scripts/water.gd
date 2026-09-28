@@ -8,6 +8,9 @@ extends MeshInstance3D
 ## Prototype: reference to the live env object.
 @export var environment_controller: EnvironmentController
 
+## The boat drives the wake, the foam, the hull cut-out and the lantern highlight.
+@export var boat: Boat
+
 var _material: ShaderMaterial
 
 
@@ -33,6 +36,16 @@ func _process(_delta: float) -> void:
 	_material.set_shader_parameter("u_sun_dir", env.sun_dir)
 	# Prototype: uSunCol is the sun colour premultiplied by its intensity.
 	_material.set_shader_parameter("u_sun_col", _rgb(env.col("sun_col")) * env.num("sun"))
+
+	if boat == null:
+		return
+	_material.set_shader_parameter("u_boat", Vector2(boat.boat_x, boat.boat_z))
+	_material.set_shader_parameter("u_boat_dir", boat.heading_vector())
+	_material.set_shader_parameter("u_speed_n", boat.speed_normalised())
+	_material.set_shader_parameter("u_lamp_pos", boat.lantern_global_position())
+	# Prototype: uLampCol = #ffb45a scaled by how dark it is.
+	var lamp: Color = Color("#ffb45a").srgb_to_linear() * (0.35 + 0.9 * env.num("night"))
+	_material.set_shader_parameter("u_lamp_col", _rgb(lamp))
 
 
 ## Shader vec3 uniforms take a Vector3, not a Color.

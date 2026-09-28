@@ -150,3 +150,89 @@ Still the stormy night, still no boat — the boat couplings (`u_boat`, `u_boat_
 - `u_refl_boost` and `u_roughness` are the two water knobs; both are on the material in the
   inspector.
 - Whether to bring a ReflectionProbe back in Phase 5.
+
+---
+
+## Phase 3: boat and controls
+
+### Built
+- `scripts/mesh_util.gd` — shared geometry helpers. Builders pass corners in the prototype's
+  counter-clockwise-from-outside order and `Buffer` emits them reversed for Godot, so no call
+  site has to think about winding. Also cones, lathes, boxes, ring skinning and caps.
+  `terrain.gd` now uses its normal routine instead of its own copy.
+- `scripts/boat_builder.gd` — the prototype's boat: `sec()`, `profilePt()` and the lofted hull
+  (65 stations × 42 section points, outer shell, inner shell 6 cm inboard, both end caps), the
+  four gunwale tubes, the deck strip with its thwarts and transom, the stem post, the sagging
+  half-cylinder canopy with four bamboo hoops and a ridge pole, and the mast, arm, cord, lathed
+  paper lantern and its caps.
+- `scripts/boat.gd` — `updateBoat()` in full: thrust and steer, the Drift autopilot, the speed
+  and turn integrators, bank and z clamps, wave-sampled pitch and roll, the poling phase, and
+  the lantern flicker driving light, paper and glow.
+- `scripts/camera_rig.gd` — Follow, Boatman and Orbit, with the prototype's sensitivities,
+  clamps, smoothing and ground clearance.
+- `scripts/tools/setup_input_map.gd` — writes `ukiyo_forward` / `back` / `left` / `right`
+  (WASD + arrows) into `project.godot` via ProjectSettings rather than by hand-editing, so the
+  mapping is reproducible and still remappable in Project Settings > Input Map.
+- `scripts/tools/boat_check.gd` — **the physics is verified, not just ported.** The Drift
+  autopilot is deterministic, so the prototype's trajectory can be captured and replayed: 200
+  simulated seconds at a fixed 1/60 s, from the start at z = -335 down to the far limit, through
+  the turnaround and part of the way back. All seven tracked values match at every checkpoint,
+  which covers the autopilot steering, the `atan2` heading error and its wrap, the bank clamp,
+  the z clamp and both integrators.
+
+### Three bugs the renders caught
+1. **Three surfaces were wound inside-out** — canopy, deck and hoops. Their normals pointed
+   inward, so the awning lit like a flat slab and the deck's front face aimed at the riverbed.
+   Fixed by reordering the quads; the reasoning is in comments at each site.
+2. **One hull end cap faced into the boat.** The prototype emits both caps with identical
+   winding, which is harmless with `THREE.DoubleSide`, but leaves one cap lit from the wrong
+   side here. `Buffer.cap_fan()` now sums the fan's face normals and flips the whole cap if it
+   disagrees with the direction it should face, so neither end can be wrong.
+3. **The boat had no transform until its first tick**, so the camera started at the origin and
+   spent its first seconds crawling 335 m up the river to catch up. `_ready()` now places it.
+
+### Differences from the prototype
+4. **The hull cut-out runs to the transom.** The prototype discards water from 3 % along the
+   hull, leaving a 25 cm band standing inside the transom. Invisible against its blurred
+   reflection target; against a near-mirror surface it catches the lantern and blows out to
+   white. The cut-out now starts at the transom itself. The bow margin is unchanged.
+5. **The boat runs on `_process`, not `_physics_process`.** The prototype drives everything from
+   one loop with one clock; this keeps the boat on the same `elapsed` as the waves and the
+   environment, and stops the camera reading a 60 Hz transform on a 300 fps frame.
+6. **Rails sample `sec()` directly.** The prototype fits a Catmull-Rom spline through 33
+   stations; evaluating the section function at every tube segment is the same curve without the
+   spline approximation.
+7. **The lantern's falloff is exact.** three.js r128 in legacy mode uses
+   `pow(1 - d/range, decay)` — the same formula Godot's `omni_attenuation` uses — so range 26 and
+   attenuation 2 carry over unchanged. Only the energy scale is engine-specific; it is on the
+   `LanternLight` node if the pool of light wants tuning.
+8. **The boat is untextured.** The prototype paints planks, weave, bamboo and lantern paper onto
+   canvases at load. Those become generated PNGs in Phase 7, where the boatman's straw, cape and
+   fabric textures are needed too; for now each material carries its texture's base tone. The
+   lantern paper's 川 characters come with that pass.
+9. **No boatman yet** (Phase 7). The Boatman camera sits on an `Eye` marker at the prototype's
+   computed eye position, which Phase 7 reparents to the actual head.
+10. **Drift cannot be switched back on** once player input turns it off — the prototype only
+    re-enables it from the Drift button, which arrives with the UI in Phase 4.
+
+### What to look for when you press F5
+The boat is there, lit, and moving on its own down the river in the dark.
+
+- **Drift is on**, so the boat poles itself downstream, steering to follow the channel. Left it
+  alone for a few minutes and it will run the length of the river, hit the limit at z = 390 and
+  turn around.
+- **Take the helm** with W/S (forward and back) and A/D or the arrows (steer). Any input switches
+  Drift off — and there is no way back until Phase 4, so restart to get it again.
+- **Camera:** left-drag to look around, wheel to zoom 4.5–40 m. The View button is Phase 4, so
+  Follow is all you get on F5; the other two modes are checked and working.
+- **Look for:** the lantern swinging at the bow with its light pooling on the water and a flicker
+  in it; rain rings breaking around the hull; the water correctly cut away inside the boat, with
+  no bright patch at the stern; the boat pitching as it rides the swell and heeling into turns.
+- **Switch to `day` / `clear`** on the EnvironmentController to actually see the boat: lofted
+  hull with an upswept bow, gunwale rails, the arched canopy with its bamboo hoops, the deck and
+  thwarts, the mast and hanging lantern.
+- **Console:** both `[noise_check]` and `[boat_check]` should report a match.
+- **Frame time:** 2.83 ms (354 fps) at 1280×720.
+
+### Still open
+- The lantern's light energy is the one number that cannot port exactly; worth an eye at night.

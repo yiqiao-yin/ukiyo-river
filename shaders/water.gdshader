@@ -102,7 +102,10 @@ void fragment() {
 	float al = dot(bq, u_boat_dir);
 	float lt = dot(bq, vec2(u_boat_dir.y, -u_boat_dir.x));
 	float tt = al / 8.2 + 0.5;
-	if (tt > 0.03 && tt < 0.93) {
+	// Prototype starts the cut-out at tt = 0.03, which leaves a 25 cm band of water standing
+	// inside the transom. It never showed there; against a near-mirror surface it catches the
+	// lantern and blows out to white, so the cut-out runs to the transom itself at tt = 0.
+	if (tt > 0.0 && tt < 0.93) {
 		float bw = smoothstep(0.55, 1.0, tt);
 		float st = 1.0 - smoothstep(0.0, 0.18, tt);
 		float hb = 1.05 * (1.0 - pow(bw, 1.8) * 0.97) * (1.0 - st * 0.35);

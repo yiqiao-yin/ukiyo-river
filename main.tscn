@@ -1,14 +1,67 @@
-[gd_scene format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=10 format=3 uid="uid://bxmbah4ajvx00"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_nr37e"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
+[ext_resource type="Script" path="res://scripts/environment_controller.gd" id="3_env"]
+[ext_resource type="Script" path="res://scripts/terrain.gd" id="4_terrain"]
+[ext_resource type="Script" path="res://scripts/water.gd" id="5_water"]
+[ext_resource type="Script" path="res://scripts/camera_rig.gd" id="6_camera"]
 
-[node name="Main" type="Node3D" unique_id=672097905]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("2_sky")
+shader_parameter/u_top = Color(0.002125, 0.003035, 0.006049, 1)
+shader_parameter/u_hor = Color(0.017642, 0.029557, 0.064803, 1)
+shader_parameter/u_fog = Color(0.013702, 0.021219, 0.035601, 1)
+shader_parameter/u_sun_col = Color(0.346704, 0.456411, 0.686685, 1)
+shader_parameter/u_sun_dir = Vector3(0.35, 0.42, 0.8)
+shader_parameter/u_time = 0.0
+shader_parameter/u_cloud = 1.0
+shader_parameter/u_flash = 0.0
+shader_parameter/u_stars = 1.0
+shader_parameter/u_haze = 0.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=43685376]
-mesh = SubResource("BoxMesh_nr37e")
+[sub_resource type="Sky" id="Sky_night"]
+sky_material = SubResource("ShaderMaterial_sky")
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=799423604]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 4)
+[sub_resource type="Environment" id="Environment_night"]
+background_mode = 2
+sky = SubResource("Sky_night")
+ambient_light_source = 2
+ambient_light_color = Color(0.147027, 0.212231, 0.381326, 1)
+ambient_light_energy = 0.403
+tonemap_mode = 0
+ssr_enabled = true
+fog_enabled = true
+fog_light_color = Color(0.013702, 0.021219, 0.035601, 1)
+fog_density = 0.0105
+fog_sky_affect = 0.0
+volumetric_fog_density = 0.015
+volumetric_fog_length = 120.0
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=543115758]
-transform = Transform3D(1, 0, 0, 0, 0.70710677, 0.70710677, 0, -0.70710677, 0.70710677, 0, 0, 0)
+[node name="Main" type="Node3D" node_paths=PackedStringArray("environment_controller")]
+script = ExtResource("1_main")
+environment_controller = NodePath("EnvironmentController")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_night")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.916, 0, -0.401, -0.185, 0.888, -0.422, 0.356, 0.46, 0.814, 0, 0, 0)
+light_color = Color(0.346704, 0.456411, 0.686685, 1)
+light_energy = 0.135
+shadow_enabled = true
+directional_shadow_max_distance = 20.0
+
+[node name="EnvironmentController" type="Node" parent="." node_paths=PackedStringArray("world_environment", "sun_light")]
+script = ExtResource("3_env")
+world_environment = NodePath("../WorldEnvironment")
+sun_light = NodePath("../Sun")
+
+[node name="Terrain" type="MeshInstance3D" parent="."]
+script = ExtResource("4_terrain")
+
+[node name="Water" type="MeshInstance3D" parent="."]
+script = ExtResource("5_water")
+
+[node name="Camera" type="Camera3D" parent="."]
+script = ExtResource("6_camera")

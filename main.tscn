@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=13 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/terrain.gd" id="4_terrain"]
 [ext_resource type="Script" path="res://scripts/water.gd" id="5_water"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="6_camera"]
+[ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -20,6 +21,17 @@ shader_parameter/u_flash = 0.0
 shader_parameter/u_stars = 1.0
 shader_parameter/u_haze = 0.0
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
+render_priority = 0
+shader = ExtResource("7_water_shader")
+shader_parameter/u_refl_boost = 0.3
+shader_parameter/u_roughness = 0.02
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_water"]
+size = Vector2(900, 900)
+subdivide_width = 109
+subdivide_depth = 109
+
 [sub_resource type="Sky" id="Sky_night"]
 sky_material = SubResource("ShaderMaterial_sky")
 
@@ -30,7 +42,9 @@ ambient_light_source = 2
 ambient_light_color = Color(0.147027, 0.212231, 0.381326, 1)
 ambient_light_energy = 0.403
 tonemap_mode = 0
+reflected_light_source = 2
 ssr_enabled = true
+ssr_max_steps = 96
 fog_enabled = true
 fog_light_color = Color(0.013702, 0.021219, 0.035601, 1)
 fog_density = 0.0105
@@ -60,8 +74,11 @@ sun_light = NodePath("../Sun")
 [node name="Terrain" type="MeshInstance3D" parent="."]
 script = ExtResource("4_terrain")
 
-[node name="Water" type="MeshInstance3D" parent="."]
+[node name="Water" type="MeshInstance3D" parent="." node_paths=PackedStringArray("environment_controller")]
+mesh = SubResource("PlaneMesh_water")
+material_override = SubResource("ShaderMaterial_water")
 script = ExtResource("5_water")
+environment_controller = NodePath("../EnvironmentController")
 
 [node name="Camera" type="Camera3D" parent="."]
 script = ExtResource("6_camera")

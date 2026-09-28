@@ -1,26 +1,40 @@
 ## River surface.
 ##
-## Phase 1 placeholder: a flat 900 m plane at y = 0 in the prototype's deep-water colour, so the
-## valley reads as a valley while the terrain and sky are reviewed. Phase 2 replaces the material
-## with the ported water shader (waves, flow noise, rain ripples, reflections, wake, foam) and
-## subdivides the plane to the prototype's 110x110 grid.
+## The mesh and the ShaderMaterial live in main.tscn so they stay tunable in the inspector; this
+## script only feeds shaders/water.gdshader the values the prototype recomputes every frame
+## (reference/ukiyo-river.html lines 1535-1542).
 extends MeshInstance3D
 
-## Prototype TS - the water plane is the same size as the terrain.
-const SIZE: float = 900.0
+## Prototype: reference to the live env object.
+@export var environment_controller: EnvironmentController
+
+var _material: ShaderMaterial
 
 
 func _ready() -> void:
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(SIZE, SIZE)
-	# Phase 2 needs 110x110 for vertex wave displacement; flat does not, so keep it cheap.
-	plane.subdivide_width = 1
-	plane.subdivide_depth = 1
-	mesh = plane
+	# The prototype's water never casts a shadow - it is drawn after the shadow pass entirely.
+	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_material = material_override as ShaderMaterial
+	if _material == null:
+		push_error("[water] expected a ShaderMaterial in material_override")
 
-	var mat := StandardMaterial3D.new()
-	# TIMES.night.deep
-	mat.albedo_color = Color("#0f1b22").srgb_to_linear()
-	mat.roughness = 0.15
-	mat.metallic = 0.0
-	material_override = mat
+
+func _process(_delta: float) -> void:
+	if _material == null or environment_controller == null:
+		return
+	var env: EnvironmentController = environment_controller
+	_material.set_shader_parameter("u_time", env.elapsed)
+	_material.set_shader_parameter("u_wind", env.num("wind"))
+	_material.set_shader_parameter("u_rain", env.num("rain"))
+	_material.set_shader_parameter("u_flash", env.flash)
+	_material.set_shader_parameter("u_ambient", env.num("amb"))
+	_material.set_shader_parameter("u_cloud", env.num("cloud"))
+	_material.set_shader_parameter("u_deep", _rgb(env.col("deep")))
+	_material.set_shader_parameter("u_sun_dir", env.sun_dir)
+	# Prototype: uSunCol is the sun colour premultiplied by its intensity.
+	_material.set_shader_parameter("u_sun_col", _rgb(env.col("sun_col")) * env.num("sun"))
+
+
+## Shader vec3 uniforms take a Vector3, not a Color.
+func _rgb(c: Color) -> Vector3:
+	return Vector3(c.r, c.g, c.b)

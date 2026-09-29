@@ -55,8 +55,13 @@ var colors: Dictionary = {}
 var numbers: Dictionary = {}
 var sun_dir: Vector3 = Vector3(0.35, 0.42, 0.8).normalized()
 
-## Lightning flash strength for this frame, written by the lightning system in Phase 4.
+## Lightning flash strength for this frame, written by lightning.gd. The Lightning node runs
+## at a lower process_priority so this is already set by the time _apply() reads it.
 var flash: float = 0.0
+
+## Bearing of the current bolt. While a flash is bright the prototype swings the directional
+## light onto this instead of the sun.
+var flash_direction: Vector3 = Vector3.UP
 
 ## Accumulated scene time, the prototype's `T`.
 var elapsed: float = 0.0
@@ -163,14 +168,13 @@ func _apply() -> void:
 		e.volumetric_fog_albedo = col("fog")
 
 	if sun_light != null:
-		var lightning_dir: bool = flash > 0.05
-		var dir: Vector3 = sun_dir
 		sun_light.light_color = col("sun_col").lerp(
 			Color(0.847, 0.878, 1.0).srgb_to_linear(), clampf(flash, 0.0, 1.0)
 		)
 		sun_light.light_energy = num("sun") + flash * 1.4
-		if not lightning_dir:
-			_aim_light(sun_light, dir)
+		# Prototype: the light is placed 100 m along the bolt direction while a flash is bright,
+		# and along the sun direction otherwise.
+		_aim_light(sun_light, flash_direction if flash > 0.05 else sun_dir)
 
 	if _sky_material != null:
 		_sky_material.set_shader_parameter("u_top", col("top"))

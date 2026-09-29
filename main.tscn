@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=19 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
@@ -8,6 +8,10 @@
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="6_camera"]
 [ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water_shader"]
 [ext_resource type="PackedScene" path="res://scenes/boat.tscn" id="8_boat"]
+[ext_resource type="PackedScene" path="res://scenes/weather.tscn" id="9_weather"]
+[ext_resource type="PackedScene" path="res://scenes/ui.tscn" id="10_ui"]
+[ext_resource type="Script" path="res://scripts/lightning.gd" id="11_lightning"]
+[ext_resource type="Script" path="res://scripts/audio_director.gd" id="12_audio"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -32,6 +36,19 @@ shader_parameter/u_roughness = 0.02
 size = Vector2(900, 900)
 subdivide_width = 109
 subdivide_depth = 109
+
+[sub_resource type="StandardMaterial3D" id="Mat_bolt"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+cull_mode = 2
+depth_draw_mode = 2
+disable_fog = true
+albedo_color = Color(0.874, 0.902, 1, 0.08)
+
+[sub_resource type="AudioStreamGenerator" id="Gen_ambience"]
+mix_rate = 22050.0
+buffer_length = 0.2
 
 [sub_resource type="Sky" id="Sky_night"]
 sky_material = SubResource("ShaderMaterial_sky")
@@ -67,8 +84,23 @@ light_energy = 0.135
 shadow_enabled = true
 directional_shadow_max_distance = 20.0
 
+[node name="Lightning" type="Node3D" parent="." node_paths=PackedStringArray("environment_controller", "boat", "camera", "audio_director", "bolt_mesh")]
+process_priority = -10
+script = ExtResource("11_lightning")
+environment_controller = NodePath("../EnvironmentController")
+boat = NodePath("../Boat")
+camera = NodePath("../Camera")
+audio_director = NodePath("../AudioDirector")
+bolt_mesh = NodePath("Bolt")
+
+[node name="Bolt" type="MeshInstance3D" parent="Lightning"]
+material_override = SubResource("Mat_bolt")
+cast_shadow = 0
+extra_cull_margin = 400.0
+
 [node name="EnvironmentController" type="Node" parent="." node_paths=PackedStringArray("world_environment", "sun_light")]
 script = ExtResource("3_env")
+process_priority = 0
 world_environment = NodePath("../WorldEnvironment")
 sun_light = NodePath("../Sun")
 
@@ -76,15 +108,40 @@ sun_light = NodePath("../Sun")
 script = ExtResource("4_terrain")
 
 [node name="Boat" parent="." node_paths=PackedStringArray("environment_controller") instance=ExtResource("8_boat")]
+process_priority = 10
 environment_controller = NodePath("../EnvironmentController")
 
 [node name="Water" type="MeshInstance3D" parent="." node_paths=PackedStringArray("environment_controller", "boat")]
 mesh = SubResource("PlaneMesh_water")
 material_override = SubResource("ShaderMaterial_water")
+process_priority = 15
 script = ExtResource("5_water")
 environment_controller = NodePath("../EnvironmentController")
 boat = NodePath("../Boat")
 
 [node name="Camera" type="Camera3D" parent="." node_paths=PackedStringArray("boat")]
+process_priority = 20
 script = ExtResource("6_camera")
 boat = NodePath("../Boat")
+
+[node name="Weather" parent="." node_paths=PackedStringArray("environment_controller", "camera") instance=ExtResource("9_weather")]
+process_priority = 15
+environment_controller = NodePath("../EnvironmentController")
+camera = NodePath("../Camera")
+
+[node name="AudioDirector" type="Node" parent="." node_paths=PackedStringArray("environment_controller", "boat", "player")]
+process_priority = 15
+script = ExtResource("12_audio")
+environment_controller = NodePath("../EnvironmentController")
+boat = NodePath("../Boat")
+player = NodePath("Ambience")
+
+[node name="Ambience" type="AudioStreamPlayer" parent="AudioDirector"]
+stream = SubResource("Gen_ambience")
+
+[node name="UI" parent="." node_paths=PackedStringArray("environment_controller", "camera", "boat", "lightning", "audio_director") instance=ExtResource("10_ui")]
+environment_controller = NodePath("../EnvironmentController")
+camera = NodePath("../Camera")
+boat = NodePath("../Boat")
+lightning = NodePath("../Lightning")
+audio_director = NodePath("../AudioDirector")

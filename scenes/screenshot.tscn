@@ -5,3 +5,4 @@
 [node name="Screenshot" type="Node"]
 script = ExtResource("1_shot")
 out_path = "res://shot.png"
+wait_frames = 120

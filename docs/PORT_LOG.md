@@ -236,3 +236,80 @@ The boat is there, lit, and moving on its own down the river in the dark.
 
 ### Still open
 - The lantern's light energy is the one number that cannot port exactly; worth an eye at night.
+
+---
+
+## Phase 4: weather and time
+
+### Built
+- `scripts/lightning.gd` — `strike()`, `jag()`, `ribbon()` and `flashAt()` ported. A bolt picks a
+  bearing and a distance (22 % chance of a close one), subdivides cloud base to ground seven
+  times, expands into a camera-facing ribbon with three forks, and runs the five-pulse flash
+  envelope. The flash drives the sky shader, the sun's colour and energy, the ambient level, the
+  water and the rain tint; while it is bright the directional light swings onto the bolt's
+  bearing, as in the prototype.
+- `scripts/audio_director.gd` — the Web Audio graph rebuilt on one `AudioStreamGenerator`. Three
+  noise beds (band-limited white for rain, brown rolled off at 380 Hz for wind, brown through a
+  520 Hz bandpass at Q 0.8 for lapping) plus thunder as a lowpass sweeping 1200 Hz down to 90 Hz
+  over five seconds under a four-stage envelope, and a highpassed crack for near strikes. Biquads
+  and noise are evaluated per sample in GDScript at 22 050 Hz. **No audio files.**
+- `scripts/weather.gd` + `scenes/weather.tscn` — rain and petals as `GPUParticles3D` following
+  the camera, with `amount_ratio` thinning the drops the way the prototype's `setDrawRange` did.
+- `scripts/ui.gd` + `scenes/ui.tscn` — the five buttons, cycling in the prototype's order.
+- Explicit `process_priority` ordering across the scene: lightning writes the flash, the
+  environment applies it, the boat moves, water and weather read both, the camera follows last.
+  The prototype gets this free from its single loop; in a node tree it has to be stated.
+- `scripts/tools/audio_check.gd` — **the audio is verified.** Headless runs use a dummy driver
+  and never make a sound, so silence, a NaN, a dead filter or a bed wired to the wrong noise
+  source would all ship unnoticed. Each bed is rendered alone and checked for level and for
+  zero-crossing rate, which stands in for brightness without an FFT. Rain comes out at 0.375
+  crossings per sample (near-white), wind at 0.011 (a deep rumble), and lapping at 0.050 —
+  which is 2 × 520 / 22050, so the bandpass is sitting exactly where the prototype put it.
+  Thunder rises to full scale and decays to silence.
+
+### Two things the renders caught
+1. **Drops were spawning on the lens.** The emission box was centred on the camera, so a few
+   drops appeared a few centimetres away and smeared a quarter of the screen. The prototype only
+   ever recycles a drop to somewhere overhead, so both emitters now sit above the camera in their
+   own local transforms — rain 27.5 m up, petals 7 m up, matching the heights the prototype
+   recycles to.
+2. **Petals were being fed sRGB values as linear**, which made them brighter than the
+   prototype's pink. Converted, like every other colour in the project.
+
+### Differences from the prototype
+3. **Rain drops do not accelerate.** The prototype gives each drop a constant velocity, so the
+   wind goes into the emission direction rather than into particle gravity. Because the fall
+   speed varies 22–32 m/s while the wind drift is fixed, a single emission direction is a close
+   approximation rather than an exact one.
+4. **Audio runs at 22 050 Hz.** The prototype's highest filter corner is 6.5 kHz, so 11 kHz of
+   bandwidth loses nothing audible and halves the per-sample cost of running the filters in
+   GDScript.
+5. **Lowpass and highpass use a Butterworth Q.** The prototype leaves Q at the Web Audio default
+   for those stages; 1/√2 is the flat, non-resonant response that implies. The bandpass keeps the
+   prototype's explicit Q of 0.8.
+6. **The buttons are unstyled.** The prototype's bar is a rounded translucent panel in Shippori
+   Mincho. Fonts and styling are Phase 8, along with the title screen and the 浮世川 mark.
+
+### Known warning, not a project bug
+`1 ObjectDB instance was leaked at exit` appears on every run that plays audio. It is Godot's
+audio server still holding the generator's playback at shutdown: the project keeps no reference
+to it (the playback is fetched per fill, and the player is stopped in `_exit_tree`), and deleting
+the `AudioStreamPlayer` node makes the warning disappear. Nothing in project code can release it.
+
+### What to look for when you press F5
+The scene is now the prototype's, minus the landmarks and trees.
+
+- **Rain** falling at an angle across the whole view, ringing the water where it lands.
+- **Lightning** every 4–13 seconds: the sky and the whole valley flash, the bolt itself is drawn
+  for 0.6 s somewhere on a random bearing, and the thunder follows a moment later — the delay is
+  the sound travelling, so distant strikes rumble late and near ones crack.
+- **Sound.** Rain hiss, a wind bed under it, water lapping that rises with speed. Sound is on by
+  default; the button mutes it.
+- **The five buttons, top right.** Weather cycles Storm → Rain → Clear, Time cycles Night → Dusk
+  → Day, View cycles Follow → Boatman → Orbit, and Drift and Sound toggle. Switching back to
+  Storm pulls the next bolt in to 1.5 s so you are not left waiting. Every transition eases over
+  about a second rather than snapping.
+- **Drift is now recoverable** — the button turns it back on after you have steered.
+- Try **Clear / Dusk**: the rain stops, the storm clouds clear off, and the sunset lays a long
+  reflection down the river.
+- **Frame time:** 2.76 ms (362 fps) at 1280×720 with rain at full.

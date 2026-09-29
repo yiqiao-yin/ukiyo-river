@@ -1,0 +1,85 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/weather.gd" id="1_weather"]
+
+[sub_resource type="ParticleProcessMaterial" id="Process_rain"]
+lifetime_randomness = 0.2
+emission_shape = 3
+emission_box_extents = Vector3(35, 7.5, 35)
+direction = Vector3(0.15, -0.98, 0.1)
+spread = 0.0
+initial_velocity_min = 22.0
+initial_velocity_max = 32.0
+gravity = Vector3(0, 0, 0)
+scale_min = 0.8
+scale_max = 1.2
+
+[sub_resource type="StandardMaterial3D" id="Mat_rain"]
+transparency = 1
+shading_mode = 0
+cull_mode = 2
+depth_draw_mode = 2
+albedo_color = Color(0.45, 0.5, 0.6, 0.32)
+
+[sub_resource type="QuadMesh" id="Quad_rain"]
+size = Vector2(0.03, 0.95)
+
+[sub_resource type="ParticleProcessMaterial" id="Process_petals"]
+lifetime_randomness = 0.3
+emission_shape = 3
+emission_box_extents = Vector3(28, 4, 28)
+direction = Vector3(0, -1, 0)
+spread = 0.0
+initial_velocity_min = 0.5
+initial_velocity_max = 1.1
+gravity = Vector3(0, 0, 0)
+angular_velocity_min = -40.0
+angular_velocity_max = 40.0
+turbulence_enabled = true
+turbulence_noise_strength = 0.6
+turbulence_noise_scale = 2.5
+turbulence_influence_min = 0.4
+turbulence_influence_max = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_petals"]
+transparency = 1
+shading_mode = 0
+cull_mode = 2
+depth_draw_mode = 2
+billboard_mode = 1
+albedo_color = Color(0.871367, 0.467784, 0.552011, 0.85)
+
+[sub_resource type="QuadMesh" id="Quad_petals"]
+size = Vector2(0.13, 0.13)
+
+[node name="Weather" type="Node3D" node_paths=PackedStringArray("rain", "petals")]
+script = ExtResource("1_weather")
+rain = NodePath("Rain")
+petals = NodePath("Petals")
+
+[node name="Rain" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 27.5, 0)
+material_override = SubResource("Mat_rain")
+cast_shadow = 0
+amount = 8000
+lifetime = 1.76
+preprocess = 1.76
+local_coords = false
+visibility_aabb = AABB(-40, -50, -40, 80, 70, 80)
+transform_align = 3
+draw_order = 3
+process_material = SubResource("Process_rain")
+draw_pass_1 = SubResource("Quad_rain")
+
+[node name="Petals" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 0)
+material_override = SubResource("Mat_petals")
+cast_shadow = 0
+amount = 220
+lifetime = 14.0
+preprocess = 14.0
+local_coords = false
+visibility_aabb = AABB(-32, -20, -32, 64, 34, 64)
+draw_order = 3
+process_material = SubResource("Process_petals")
+draw_pass_1 = SubResource("Quad_petals")

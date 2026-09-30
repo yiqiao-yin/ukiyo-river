@@ -92,6 +92,10 @@ func _update(weight: float, dt: float) -> void:
 		return
 	_head = UkiyoMath.angle_lerp(_head, boat.heading, 1.0 - exp(-dt * 2.2))
 
+	# Prototype hides him in first person - you are looking out of his eyes.
+	if boat.boatman != null:
+		boat.boatman.visible = mode != Mode.BOATMAN
+
 	if mode == Mode.BOATMAN:
 		_update_boatman_view()
 		return

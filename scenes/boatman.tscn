@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/boatman.gd" id="1_boatman"]
+
+[node name="Boatman" type="Node3D" node_paths=PackedStringArray("upper", "head", "hat", "pole", "eye")]
+script = ExtResource("1_boatman")
+upper = NodePath("Upper")
+head = NodePath("Upper/Head")
+hat = NodePath("Upper/Head/Hat")
+pole = NodePath("Pole")
+eye = NodePath("Upper/Head/Eye")
+
+[node name="Upper" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.86, 0)
+
+[node name="Head" type="Node3D" parent="Upper"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0.01)
+
+[node name="Hat" type="Node3D" parent="Upper/Head"]
+transform = Transform3D(1, 0, 0, 0, 0.995004, 0.0998334, 0, -0.0998334, 0.995004, 0, 0.155, 0)
+
+[node name="Eye" type="Marker3D" parent="Upper/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0.11)
+
+[node name="Pole" type="Node3D" parent="."]

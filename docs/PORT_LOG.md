@@ -455,3 +455,59 @@ The banks are forested now.
   equally square (`THREE.Points`, size 0.13), so this is faithful rather than broken, but it is
   the one thing on screen that looks more like a placeholder than a choice. Easy to soften with
   a texture if you would rather.
+
+---
+
+## Phase 7: boatman and boat details
+
+### Built
+- The remaining painted textures: hull and deck planks with their bump variants, the canopy
+  weave, straw fibre, the cape strands, four fabrics (kimono, pants, gaiters, obi), bamboo and
+  the lantern paper. Fifteen more images out of the same generator, about thirty seconds.
+- `scripts/boat_materials.gd` — the prototype's whole `BM` table in one place, shared by the
+  boat and the boatman, with the per-frame wetness that makes every surface glossier in rain.
+  The boat's flat stand-in colours from Phase 3 are gone.
+- `scripts/boatman.gd` + `scenes/boatman.tscn` — the figure: legs, sandals and thongs, the
+  lathed torso, sash and knot, collar, three layers of straw cape, neck, head with jaw, nose,
+  ears, brows, hair and topknot, the conical hat with its lining, rim and finial, the bamboo
+  pole, and twelve loose arm pieces. Two-bone IK (`solveArm`) plants both hands on the pole
+  every frame, and the poling cycle drives the torso, head and pole together.
+- `scripts/rain_splashes.gd` — four `GPUParticles3D`: splashes off the canopy and the hat,
+  drips off the gunwales and the hat brim. Each emitter is a point cloud sampled from the same
+  surface the prototype spawns on, and each system's `amount` is the prototype's rate times its
+  lifetime, so the same number of drops is in the air.
+- The Boatman camera now sits on a marker parented to his head, and he is hidden in that mode.
+
+### The 川 on the lantern is drawn, not typeset
+The prototype sets the character with a Google font. Shipping a font for two glyphs is silly and
+loading one at runtime is worse, so 川 is drawn directly: three strokes, the left one hooking
+away at the foot, the middle short, the right running the full height. No font in the project.
+
+### Differences from the prototype
+1. **Bump maps become normal maps.** three.js `bumpMap` perturbs the normal from a height
+   gradient; Godot has no equivalent, so the greyscale variants are fed through `NORMAL_MAP` at
+   modest depth. Close, not identical.
+2. **Splashes are emitted from sampled point clouds** rather than recomputed per drop. The
+   prototype picks a fresh random point on the canopy arc for every splash; here 240 points are
+   sampled from that same arc once and the emitter picks among them. At 140 drops a second the
+   difference is not visible.
+3. **Splash counts are steady-state, not per-event.** The prototype accumulates fractional
+   spawns; GPUParticles3D works from `amount` over `lifetime`, which gives the same rate.
+4. **The sampling uses its own random stream** (seed 8081) rather than the world one — drawing
+   from the shared stream here would move every village, lantern and tree.
+
+### What to look for when you press F5
+There is a man in the boat now.
+
+- **He poles.** Watch the cycle: the torso leans and twists, the head counter-rotates, the pole
+  swings, and both hands stay planted on it because the arms are solved to reach rather than
+  animated. Under way he works hard; coasting he barely moves.
+- **His kit**: conical straw hat with a corded rim, three overlapping layers of straw cape,
+  indigo kimono, sash, white gaiters and straw sandals.
+- **Rain coming off him and the boat.** In Storm, drops kick up off the hat and the canopy and
+  run off the brim and the gunwales.
+- **The boat is textured.** Sawn planks with grain, knots and nail heads on hull and deck; woven
+  matting on the canopy; bamboo poles; and the paper lantern with its red ends, ribs and two 川.
+  Everything gets glossier as the rain comes on.
+- **View: Boatman** puts you behind his eyes and hides him.
+- **Frame time:** 2.74 ms (365 fps) at 1280×720.

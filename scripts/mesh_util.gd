@@ -172,19 +172,56 @@ static func add_cone(
 
 
 ## Revolves a profile of (radius, height) pairs around the Y axis - three.js LatheGeometry.
-static func add_lathe(buf: Buffer, profile: PackedVector2Array, segments: int) -> void:
+## `phi_length` under a full turn leaves the shape open, which is how the straw cape is built.
+static func add_lathe(
+	buf: Buffer, profile: PackedVector2Array, segments: int,
+	phi_start: float = 0.0, phi_length: float = TAU
+) -> void:
+	var closed: bool = is_equal_approx(phi_length, TAU)
+	var count: int = segments if closed else segments + 1
 	var rows: Array[PackedInt32Array] = []
 	for point: Vector2 in profile:
 		var ids := PackedInt32Array()
-		for s: int in segments:
-			var a: float = TAU * float(s) / float(segments)
+		for s: int in count:
+			var a: float = phi_start + phi_length * float(s) / float(segments)
 			ids.push_back(buf.vert(
 				Vector3(cos(a) * point.x, point.y, sin(a) * point.x),
 				Vector2(float(s) / float(segments), point.y)
 			))
 		rows.push_back(ids)
 	for i: int in rows.size() - 1:
-		buf.skin(rows[i + 1], rows[i])
+		if closed:
+			buf.skin(rows[i + 1], rows[i])
+		else:
+			for s: int in segments:
+				buf.quad(rows[i + 1][s], rows[i + 1][s + 1], rows[i][s + 1], rows[i][s])
+
+
+## A torus in the XY plane - three.js TorusGeometry.
+static func add_torus(
+	buf: Buffer, centre: Vector3, radius: float, tube: float,
+	tube_segments: int, arc_segments: int, arc: float = TAU,
+	basis: Basis = Basis.IDENTITY
+) -> void:
+	var closed: bool = is_equal_approx(arc, TAU)
+	var count: int = arc_segments if closed else arc_segments + 1
+	var rows: Array[PackedInt32Array] = []
+	for i: int in count:
+		var u: float = arc * float(i) / float(arc_segments)
+		var ring_centre := Vector3(cos(u) * radius, sin(u) * radius, 0.0)
+		var outward := Vector3(cos(u), sin(u), 0.0)
+		var ids := PackedInt32Array()
+		for j: int in tube_segments:
+			var v: float = TAU * float(j) / float(tube_segments)
+			ids.push_back(buf.vert(
+				centre + basis * (
+					ring_centre + outward * (cos(v) * tube) + Vector3(0.0, 0.0, sin(v) * tube)
+				),
+				Vector2(float(i) / float(arc_segments), float(j) / float(tube_segments))
+			))
+		rows.push_back(ids)
+	for i: int in (count if closed else count - 1):
+		buf.skin(rows[(i + 1) % count], rows[i])
 
 
 ## A box centred on `centre` - three.js BoxGeometry.
@@ -253,7 +290,8 @@ static func add_pyramid(
 
 ## A UV sphere - three.js SphereGeometry.
 static func add_sphere(
-	buf: Buffer, centre: Vector3, radius: float, segments: int, rings: int
+	buf: Buffer, centre: Vector3, radius: float, segments: int, rings: int,
+	scale: Vector3 = Vector3.ONE
 ) -> void:
 	var rows: Array[PackedInt32Array] = []
 	for r: int in rings + 1:
@@ -264,7 +302,7 @@ static func add_sphere(
 		for sgm: int in segments + 1:
 			var theta: float = TAU * float(sgm) / float(segments)
 			ids.push_back(buf.vert(
-				centre + Vector3(cos(theta) * ring_radius, y, sin(theta) * ring_radius),
+				centre + Vector3(cos(theta) * ring_radius, y, sin(theta) * ring_radius) * scale,
 				Vector2(float(sgm) / float(segments), float(r) / float(rings))
 			))
 		rows.push_back(ids)

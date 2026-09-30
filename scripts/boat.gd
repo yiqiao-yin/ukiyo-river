@@ -26,6 +26,8 @@ const Z_LIMIT: float = 390.0
 ## The bow lantern's light and glow, positioned by the builder's LANTERN_POS.
 @export var lantern_light: OmniLight3D
 @export var lantern_glow: MeshInstance3D
+@export var boatman: Boatman
+@export var rain_splashes: RainSplashes
 
 ## Live state, read by the camera and the water shader.
 var boat_x: float = 0.0
@@ -40,8 +42,12 @@ var push: float = 0.0
 var drift: bool = true
 
 var _auto_direction: float = 1.0
+## How hard he is poling this frame, 1 under way and 0.2 coasting.
+var _activity: float = 1.0
 var _paper_material: StandardMaterial3D
 var _glow_material: StandardMaterial3D
+var _materials: Dictionary = {}
+var _base_roughness: Dictionary = {}
 
 
 func _ready() -> void:
@@ -51,14 +57,16 @@ func _ready() -> void:
 	rotation_order = EULER_ORDER_YXZ
 
 	var meshes: Dictionary = BoatBuilder.build()
-	var materials: Dictionary = BoatBuilder.materials()
+	_materials = BoatMaterials.build()
+	_base_roughness = BoatMaterials.base_roughness(_materials)
+	var materials: Dictionary = _materials
 	for key: String in meshes:
 		var instance := MeshInstance3D.new()
 		instance.name = key.capitalize()
 		instance.mesh = meshes[key]
 		instance.material_override = materials[key]
 		add_child(instance)
-		if key == BoatBuilder.MAT_PAPER:
+		if key == BoatMaterials.PAPER:
 			_paper_material = materials[key]
 
 	# Put the boat where it belongs before anyone reads it. Without this the transform stays at
@@ -66,6 +74,9 @@ func _ready() -> void:
 	# 335 m up the river to catch up.
 	position = Vector3(boat_x, 0.0, boat_z)
 	rotation = Vector3(0.0, heading, 0.0)
+
+	if rain_splashes != null:
+		rain_splashes.environment_controller = environment_controller
 
 	if eye != null:
 		eye.position = BoatBuilder.EYE_POS
@@ -89,6 +100,15 @@ func _process(delta: float) -> void:
 		wind = environment_controller.num("wind")
 	step_physics(dt, t, wind)
 	_update_lantern(t)
+
+	if environment_controller != null:
+		# Prototype: every surface on the boat gets glossier in the rain.
+		BoatMaterials.apply_wetness(
+			_materials, _base_roughness, environment_controller.num("rain")
+		)
+	if boatman != null:
+		# Prototype: the poling phase drives the whole figure.
+		boatman.animate(push, _activity)
 
 
 ## updateBoat(dt, t) - input, autopilot, integration, bank limits, then bob and tilt.
@@ -162,8 +182,8 @@ func step_physics(dt: float, t: float, wind: float) -> void:
 	)
 
 	# Poling effort, used by the boatman animation.
-	var activity: float = 1.0 if (drift or absf(thrust) > 0.05) else 0.2
-	push += dt * (0.7 + absf(speed) * 0.22) * activity
+	_activity = 1.0 if (drift or absf(thrust) > 0.05) else 0.2
+	push += dt * (0.7 + absf(speed) * 0.22) * _activity
 
 
 ## The prototype's lantern flicker, driving the light, the paper and the glow sprite.
@@ -177,7 +197,8 @@ func _update_lantern(t: float) -> void:
 		lantern_light.light_energy = (0.5 + 1.9 * night) * flicker
 	if _paper_material != null:
 		var level: float = clampf((0.55 + 0.6 * night) * flicker, 0.0, 1.2)
-		_paper_material.albedo_color = Color("#ffd898").srgb_to_linear() * level
+		# The paper is textured, so the tint rides on white rather than on a base colour.
+		_paper_material.albedo_color = Color(level, level, level, 1.0)
 	if _glow_material != null:
 		var alpha: float = (0.25 + 0.6 * night) * flicker
 		_glow_material.albedo_color = Color(1.0, 1.0, 1.0, clampf(alpha, 0.0, 1.0))

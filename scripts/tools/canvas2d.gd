@@ -116,6 +116,24 @@ func ellipse(
 			blend(px, py, Color(color.r, color.g, color.b, color.a * coverage))
 
 
+## A gradient-filled rect, along y when `vertical` and along x otherwise - canvas
+## createLinearGradient followed by fillRect.
+func gradient_rect(
+	x: float, y: float, w: float, h: float, vertical: bool, stops: Array
+) -> void:
+	var x0: int = maxi(0, int(floor(x)))
+	var y0: int = maxi(0, int(floor(y)))
+	var x1: int = mini(width, int(ceil(x + w)))
+	var y1: int = mini(height, int(ceil(y + h)))
+	for py: int in range(y0, y1):
+		for px: int in range(x0, x1):
+			var t: float = (
+				(float(py) + 0.5 - y) / maxf(h, 0.001) if vertical
+				else (float(px) + 0.5 - x) / maxf(w, 0.001)
+			)
+			blend(px, py, _sample_stops(stops, clampf(t, 0.0, 1.0)))
+
+
 ## A vertical gradient across the whole canvas, from a list of (offset, colour) stops.
 func vertical_gradient(stops: Array) -> void:
 	for py: int in height:

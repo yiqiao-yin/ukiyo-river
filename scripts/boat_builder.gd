@@ -25,14 +25,14 @@ const LANTERN_POS: Vector3 = Vector3(0.0, 2.32, 3.55)
 ## localToWorld(0, 0.07, 0.11) eye offset.
 const EYE_POS: Vector3 = Vector3(0.0, 1.55, -2.88)
 
-## Material keys, one surface each.
-const MAT_HULL: String = "hull"
-const MAT_DECK: String = "deck"
-const MAT_DARK: String = "dark"
-const MAT_CANOPY: String = "canopy"
-const MAT_BAMBOO: String = "bamboo"
-const MAT_CORD: String = "cord"
-const MAT_PAPER: String = "paper"
+## Material keys, one surface each. Shared with the boatman through BoatMaterials.
+const MAT_HULL: String = BoatMaterials.HULL
+const MAT_DECK: String = BoatMaterials.DECK
+const MAT_DARK: String = BoatMaterials.DARK
+const MAT_CANOPY: String = BoatMaterials.CANOPY
+const MAT_BAMBOO: String = BoatMaterials.BAMBOO
+const MAT_CORD: String = BoatMaterials.CORD
+const MAT_PAPER: String = BoatMaterials.PAPER
 
 
 ## sec(t) -> (b: half width, k: keel height, s: sheer height, z: station position).
@@ -294,35 +294,3 @@ static func _append_offset(
 		target.vert(source.vertices[i] + offset, source.uvs[i])
 	for index: int in source.indices:
 		target.indices.push_back(base + index)
-
-
-## Flat stand-ins for the prototype's canvas textures, using each texture's base tone.
-## Phase 7 replaces these with generated PNGs (planks, weave, bamboo, lantern paper).
-static func materials() -> Dictionary:
-	return {
-		MAT_HULL: _standard(Color("#684a32"), 0.55, true),
-		MAT_DECK: _standard(Color("#806246"), 0.6, false),
-		MAT_DARK: _standard(Color("#6e5a4a"), 0.45, false),
-		MAT_CANOPY: _standard(Color("#5a4f38"), 0.8, true),
-		MAT_BAMBOO: _standard(Color("#807442"), 0.4, false),
-		MAT_CORD: _standard(Color("#2c2118"), 0.8, false),
-		MAT_PAPER: _paper(),
-	}
-
-
-static func _standard(color: Color, roughness: float, double_sided: bool) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color.srgb_to_linear()
-	mat.roughness = roughness
-	mat.metallic = 0.0
-	if double_sided:
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return mat
-
-
-## The prototype's lanternMat is a MeshBasicMaterial - unlit, its brightness driven per frame.
-static func _paper() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color("#ffd898").srgb_to_linear()
-	return mat

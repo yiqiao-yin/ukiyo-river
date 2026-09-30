@@ -39,6 +39,9 @@ const MINCHO_MEDIUM: String = "res://assets/fonts/ShipporiMincho-Medium.ttf"
 @export var hint: Control
 @export var title: Control
 @export var cast_button: Button
+@export var combat_hud: CombatHUD
+## Wired from main.tscn; the HUD needs it and it lives outside this scene.
+@export var encounters: EncounterDirector
 
 
 func _ready() -> void:
@@ -50,6 +53,8 @@ func _ready() -> void:
 	drift_button.pressed.connect(_on_drift)
 	sound_button.pressed.connect(_on_sound)
 	cast_button.pressed.connect(_on_cast_off)
+	if combat_hud != null:
+		combat_hud.setup(boat.player if boat != null else null, encounters, camera)
 
 	_refresh()
 

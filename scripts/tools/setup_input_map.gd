@@ -7,23 +7,38 @@
 ## there without touching this file.
 extends SceneTree
 
+## Mouse buttons are listed separately from keys.
+const MOUSE_ACTIONS: Dictionary = {
+	"ukiyo_attack": [MOUSE_BUTTON_LEFT],
+}
+
 const ACTIONS: Dictionary = {
 	"ukiyo_forward": [KEY_W, KEY_UP],
 	"ukiyo_back": [KEY_S, KEY_DOWN],
 	"ukiyo_left": [KEY_A, KEY_LEFT],
 	"ukiyo_right": [KEY_D, KEY_RIGHT],
+	# Combat. The mouse stays on the camera, so swinging is a key.
+	# Left click is the strike; space is kept as a keyboard alternative.
+	"ukiyo_attack": [KEY_SPACE],
+	"ukiyo_chi": [KEY_SHIFT],
+	"ukiyo_swap": [KEY_Q],
 }
 
 
 func _init() -> void:
 	for action: String in ACTIONS:
-		var events: Array[InputEventKey] = []
+		var events: Array[InputEvent] = []
 		for keycode: int in ACTIONS[action]:
 			var event := InputEventKey.new()
 			# -1 is what the editor writes: match the key on any device.
 			event.device = -1
 			event.physical_keycode = keycode
 			events.push_back(event)
+		for button: int in MOUSE_ACTIONS.get(action, []):
+			var click := InputEventMouseButton.new()
+			click.device = -1
+			click.button_index = button
+			events.push_back(click)
 		ProjectSettings.set_setting("input/" + action, {
 			"deadzone": 0.2,
 			"events": events,

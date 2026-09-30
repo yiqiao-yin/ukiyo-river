@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/boat.gd" id="1_boat"]
 [ext_resource type="PackedScene" path="res://scenes/boatman.tscn" id="2_boatman"]
 [ext_resource type="Script" path="res://scripts/rain_splashes.gd" id="3_splashes"]
+[ext_resource type="Script" path="res://scripts/combat/player.gd" id="4_player"]
 
 [sub_resource type="Gradient" id="Gradient_glow"]
 offsets = PackedFloat32Array(0, 0.25, 1)
@@ -28,11 +29,12 @@ albedo_texture = SubResource("GradientTexture2D_glow")
 [sub_resource type="QuadMesh" id="QuadMesh_glow"]
 size = Vector2(2.2, 2.2)
 
-[node name="Boat" type="Node3D" node_paths=PackedStringArray("eye", "lantern_light", "lantern_glow", "boatman", "rain_splashes")]
+[node name="Boat" type="Node3D" node_paths=PackedStringArray("eye", "lantern_light", "lantern_glow", "boatman", "rain_splashes", "player")]
 script = ExtResource("1_boat")
 eye = NodePath("Boatman/Upper/Head/Eye")
 boatman = NodePath("Boatman")
 rain_splashes = NodePath("RainSplashes")
+player = NodePath("Boatman/Player")
 lantern_light = NodePath("LanternLight")
 lantern_glow = NodePath("LanternGlow")
 
@@ -53,3 +55,8 @@ material_override = SubResource("StandardMaterial3D_glow")
 process_priority = 15
 script = ExtResource("3_splashes")
 hat = NodePath("../Boatman/Upper/Head/Hat")
+
+[node name="Player" type="Node3D" parent="Boatman" node_paths=PackedStringArray("boat", "boatman")]
+script = ExtResource("4_player")
+boat = NodePath("../..")
+boatman = NodePath("..")

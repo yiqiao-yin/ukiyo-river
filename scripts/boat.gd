@@ -28,6 +28,8 @@ const Z_LIMIT: float = 390.0
 @export var lantern_glow: MeshInstance3D
 @export var boatman: Boatman
 @export var rain_splashes: RainSplashes
+## The player's own character, standing on the boatman.
+@export var player: PlayerCharacter
 
 ## Live state, read by the camera and the water shader.
 var boat_x: float = 0.0
@@ -106,8 +108,8 @@ func _process(delta: float) -> void:
 		BoatMaterials.apply_wetness(
 			_materials, _base_roughness, environment_controller.num("rain")
 		)
-	if boatman != null:
-		# Prototype: the poling phase drives the whole figure.
+	if boatman != null and (player == null or not player.is_swinging()):
+		# Prototype: the poling phase drives the whole figure. A swing takes over the pose.
 		boatman.animate(push, _activity)
 
 

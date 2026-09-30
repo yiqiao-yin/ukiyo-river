@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=22 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" path="res://scenes/architecture.tscn" id="14_arch"]
 [ext_resource type="Script" path="res://scripts/floating_lanterns.gd" id="15_lanterns"]
 [ext_resource type="PackedScene" path="res://scenes/trees.tscn" id="16_trees"]
+[ext_resource type="Script" path="res://scripts/combat/encounter_director.gd" id="17_encounters"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -159,9 +160,17 @@ player = NodePath("Ambience")
 [node name="Ambience" type="AudioStreamPlayer" parent="AudioDirector"]
 stream = SubResource("Gen_ambience")
 
-[node name="UI" parent="." node_paths=PackedStringArray("environment_controller", "camera", "boat", "lightning", "audio_director") instance=ExtResource("10_ui")]
+[node name="UI" parent="." node_paths=PackedStringArray("environment_controller", "camera", "boat", "lightning", "audio_director", "encounters") instance=ExtResource("10_ui")]
 environment_controller = NodePath("../EnvironmentController")
 camera = NodePath("../Camera")
 boat = NodePath("../Boat")
 lightning = NodePath("../Lightning")
 audio_director = NodePath("../AudioDirector")
+encounters = NodePath("../Encounters")
+
+[node name="Encounters" type="Node3D" parent="." node_paths=PackedStringArray("boat", "player", "environment_controller")]
+process_priority = 12
+script = ExtResource("17_encounters")
+boat = NodePath("../Boat")
+player = NodePath("../Boat/Boatman/Player")
+environment_controller = NodePath("../EnvironmentController")

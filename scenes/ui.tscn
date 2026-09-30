@@ -1,8 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui.gd" id="1_ui"]
+[ext_resource type="Script" path="res://scripts/combat/combat_hud.gd" id="2_hud"]
 
-[node name="UI" type="CanvasLayer" node_paths=PackedStringArray("weather_button", "time_button", "view_button", "drift_button", "sound_button", "bar", "mark", "hint", "title", "cast_button")]
+[node name="UI" type="CanvasLayer" node_paths=PackedStringArray("weather_button", "time_button", "view_button", "drift_button", "sound_button", "bar", "mark", "hint", "title", "cast_button", "combat_hud")]
 script = ExtResource("1_ui")
 weather_button = NodePath("Bar/Weather")
 time_button = NodePath("Bar/Time")
@@ -14,6 +15,16 @@ mark = NodePath("Mark")
 hint = NodePath("Hint")
 title = NodePath("Title")
 cast_button = NodePath("Title/Card/CastRow/Cast")
+combat_hud = NodePath("CombatHUD")
+
+[node name="CombatHUD" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_hud")
 
 [node name="Mark" type="PanelContainer" parent="."]
 offset_left = 12.0
@@ -86,7 +97,7 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -470.0
+offset_left = -700.0
 offset_top = -48.0
 offset_right = -14.0
 offset_bottom = -14.0
@@ -95,7 +106,7 @@ grow_vertical = 0
 
 [node name="Text" type="Label" parent="Hint"]
 layout_mode = 2
-text = "W/S pole forward or back, A/D steer, drag to look around, scroll to zoom"
+text = "W/S pole, A/D steer  |  Left click strike, Shift for 気, Q swap weapon  |  Right-drag to look, scroll to zoom"
 
 [node name="Title" type="ColorRect" parent="."]
 anchors_preset = 15

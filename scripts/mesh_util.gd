@@ -139,13 +139,17 @@ static func add_cone(
 	var right: Vector3 = _perpendicular(axis)
 	var up: Vector3 = axis.cross(right).normalized()
 
-	var lower: PackedInt32Array = buf.ring(a, right, up, r_a, segments, 0.0)
-	var upper: PackedInt32Array = buf.ring(b, right, up, r_b, segments, 1.0)
-	buf.skin(lower, upper)
+	buf.skin(
+		buf.ring(a, right, up, r_a, segments, 0.0),
+		buf.ring(b, right, up, r_b, segments, 1.0)
+	)
+	# The caps get their own copy of each ring. Sharing the wall's vertices would average the
+	# cap normal into the wall normal and round off what should be a hard rim, which is not what
+	# three.js CylinderGeometry does.
 	if r_a > 1e-6:
-		buf.cap(lower, a, -axis, axis)
+		buf.cap(buf.ring(a, right, up, r_a, segments, 0.0), a, -axis, axis)
 	if r_b > 1e-6:
-		buf.cap(upper, b, axis, axis)
+		buf.cap(buf.ring(b, right, up, r_b, segments, 1.0), b, axis, axis)
 
 
 ## Revolves a profile of (radius, height) pairs around the Y axis - three.js LatheGeometry.
@@ -164,21 +168,131 @@ static func add_lathe(buf: Buffer, profile: PackedVector2Array, segments: int) -
 		buf.skin(rows[i + 1], rows[i])
 
 
-## An axis-aligned box centred on `centre` - three.js BoxGeometry.
-static func add_box(buf: Buffer, centre: Vector3, size: Vector3) -> void:
+## A box centred on `centre` - three.js BoxGeometry.
+##
+## Each face gets its own four vertices. Sharing the eight corners would average three face
+## normals at every corner and shade the box like a rounded blob; BoxGeometry has per-face
+## normals, and almost every building in this project is a box.
+static func add_box(
+	buf: Buffer, centre: Vector3, size: Vector3, basis: Basis = Basis.IDENTITY
+) -> void:
 	var h: Vector3 = size * 0.5
-	var v: PackedInt32Array = PackedInt32Array()
-	for sz: int in [-1, 1]:
-		for sy: int in [-1, 1]:
-			for sx: int in [-1, 1]:
-				v.push_back(buf.vert(centre + Vector3(h.x * float(sx), h.y * float(sy), h.z * float(sz))))
-	# Vertex order is (x fastest, then y, then z): 0..3 are the -z face, 4..7 the +z face.
-	buf.quad(v[4], v[5], v[7], v[6])  # +z
-	buf.quad(v[1], v[0], v[2], v[3])  # -z
-	buf.quad(v[2], v[6], v[7], v[3])  # +y
-	buf.quad(v[0], v[1], v[5], v[4])  # -y
-	buf.quad(v[5], v[1], v[3], v[7])  # +x
-	buf.quad(v[0], v[4], v[6], v[2])  # -x
+	# Per face: the outward axis, then the two in-plane axes spanning it.
+	var faces: Array[Array] = [
+		[Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)],
+		[Vector3(0, 0, -1), Vector3(-1, 0, 0), Vector3(0, 1, 0)],
+		[Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1)],
+		[Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)],
+		[Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0)],
+		[Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0)],
+	]
+	for face: Array in faces:
+		var out: Vector3 = face[0]
+		var u: Vector3 = face[1]
+		var v: Vector3 = face[2]
+		var origin: Vector3 = out * h
+		var du: Vector3 = u * h
+		var dv: Vector3 = v * h
+		var a: int = buf.vert(centre + basis * (origin - du - dv), Vector2(0, 0))
+		var b: int = buf.vert(centre + basis * (origin + du - dv), Vector2(1, 0))
+		var c: int = buf.vert(centre + basis * (origin + du + dv), Vector2(1, 1))
+		var d: int = buf.vert(centre + basis * (origin - du + dv), Vector2(0, 1))
+		buf.quad(a, b, c, d)
+
+
+## The prototype's roofGeo: ConeGeometry(1, 1, 4) turned 45 degrees, so a square pyramid whose
+## base corners sit on the diagonals, flat shaded.
+##
+## `size` is the scale the prototype applies to the mesh, not the width of the base: the cone has
+## radius 1, so after scaling the corners land at 0.707*size from the centre and the base is
+## 1.414*size across. That overhang is what gives the roofs their eaves.
+static func add_pyramid(
+	buf: Buffer, centre: Vector3, size: Vector3, basis: Basis = Basis.IDENTITY
+) -> void:
+	var apex: Vector3 = centre + basis * Vector3(0, size.y * 0.5, 0)
+	var corners: Array[Vector3] = []
+	for i: int in 4:
+		var angle: float = PI * 0.25 + TAU * float(i) / 4.0
+		corners.push_back(centre + basis * Vector3(
+			cos(angle) * size.x, -size.y * 0.5, sin(angle) * size.z
+		))
+	for i: int in 4:
+		var p0: Vector3 = corners[i]
+		var p1: Vector3 = corners[(i + 1) % 4]
+		buf.tri(
+			buf.vert(apex, Vector2(0.5, 1)),
+			buf.vert(p1, Vector2(1, 0)),
+			buf.vert(p0, Vector2(0, 0))
+		)
+	# Base, so the roof is not hollow when seen from below.
+	var b0: int = buf.vert(corners[0], Vector2(0, 0))
+	var b1: int = buf.vert(corners[1], Vector2(1, 0))
+	var b2: int = buf.vert(corners[2], Vector2(1, 1))
+	var b3: int = buf.vert(corners[3], Vector2(0, 1))
+	buf.quad(b3, b2, b1, b0)
+
+
+## A UV sphere - three.js SphereGeometry.
+static func add_sphere(
+	buf: Buffer, centre: Vector3, radius: float, segments: int, rings: int
+) -> void:
+	var rows: Array[PackedInt32Array] = []
+	for r: int in rings + 1:
+		var phi: float = PI * float(r) / float(rings)
+		var y: float = cos(phi) * radius
+		var ring_radius: float = sin(phi) * radius
+		var ids := PackedInt32Array()
+		for sgm: int in segments + 1:
+			var theta: float = TAU * float(sgm) / float(segments)
+			ids.push_back(buf.vert(
+				centre + Vector3(cos(theta) * ring_radius, y, sin(theta) * ring_radius),
+				Vector2(float(sgm) / float(segments), float(r) / float(rings))
+			))
+		rows.push_back(ids)
+	for r: int in rings:
+		for sgm: int in segments:
+			buf.quad(rows[r][sgm], rows[r][sgm + 1], rows[r + 1][sgm + 1], rows[r + 1][sgm])
+
+
+## The prototype's bendBox: a bar swept along X whose ends rise by t*t*curve.
+static func add_bent_bar(
+	buf: Buffer, centre: Vector3, size: Vector3, curve: float, basis: Basis = Basis.IDENTITY
+) -> void:
+	var steps: int = 12
+	var half: Vector3 = size * 0.5
+	var rows: Array[PackedInt32Array] = []
+	for i: int in steps + 1:
+		var t: float = -1.0 + 2.0 * float(i) / float(steps)
+		var x: float = t * half.x
+		var lift: float = t * t * curve
+		var ids := PackedInt32Array()
+		# Cross-section corners, counter-clockwise looking back down +X.
+		for corner: Vector2 in [
+			Vector2(-half.y, -half.z), Vector2(half.y, -half.z),
+			Vector2(half.y, half.z), Vector2(-half.y, half.z),
+		]:
+			ids.push_back(buf.vert(
+				centre + basis * Vector3(x, corner.x + lift, corner.y),
+				Vector2(float(i) / float(steps), 0.0)
+			))
+		rows.push_back(ids)
+	for i: int in steps:
+		for c: int in 4:
+			var n: int = (c + 1) % 4
+			buf.quad(rows[i][c], rows[i][n], rows[i + 1][n], rows[i + 1][c])
+	buf.quad(rows[0][3], rows[0][2], rows[0][1], rows[0][0])
+	var last: int = rows.size() - 1
+	buf.quad(rows[last][0], rows[last][1], rows[last][2], rows[last][3])
+
+
+## Copies `source` into `target`, transformed. The prototype's bakeStatic() does the same job:
+## build each object in its own space, then merge everything sharing a material.
+static func append_transformed(target: Buffer, source: Buffer, xform: Transform3D) -> void:
+	var base: int = target.vertices.size()
+	for i: int in source.vertices.size():
+		target.vert(xform * source.vertices[i], source.uvs[i])
+	for index: int in source.indices:
+		target.indices.push_back(base + index)
 
 
 ## Any unit vector perpendicular to `axis`.

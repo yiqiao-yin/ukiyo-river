@@ -53,7 +53,7 @@ static func run() -> int:
 		for i: int in LABELS.size():
 			var delta: float = absf(float(got[i]) - float(want[i]))
 			if delta > TOLERANCE * maxf(1.0, absf(float(want[i]))):
-				push_error("[boat_check] step %d %s = %.9f, expected %.9f (delta %.3e)" % [
+				push_error("[boat_check] step %d %s = %.9f, expected %.9f (delta %.9f)" % [
 					step, LABELS[i], got[i], want[i], delta,
 				])
 				failures += 1

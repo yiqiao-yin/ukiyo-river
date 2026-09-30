@@ -313,3 +313,71 @@ The scene is now the prototype's, minus the landmarks and trees.
 - Try **Clear / Dusk**: the rain stops, the storm clouds clear off, and the sunset lays a long
   reflection down the river.
 - **Frame time:** 2.76 ms (362 fps) at 1280×720 with rain at full.
+
+---
+
+## Phase 5: architecture and lanterns
+
+### Built
+- `scripts/architecture_builder.gd` — `torii()`, `house()`, `pagoda()`, `toro()`, `bridge()` and
+  `stilt()`, each in its own local space with the prototype's dimensions.
+- `scripts/architecture.gd` — the 14-entry landmark table placed along the river, the exclusion
+  circles, the roadside stone lanterns every 30 m on alternating banks, and the two shore lights
+  that chase the nearest two lanterns twice a second. Everything sharing a material is merged
+  into one mesh, which is what the prototype's `bakeStatic()` does: 11 surfaces for the whole
+  world's architecture.
+- `scripts/floating_lanterns.gd` — 40 paper lanterns on two `MultiMeshInstance3D`s, drifting
+  faster than the current, wrapping around the boat, nudged aside by the hull.
+- `scripts/world_rng.gd` — holds the single `mulberry32(20260923)` stream the world is laid out
+  from, and documents the consumption order that has to be preserved.
+- `scripts/tools/world_check.gd` — **the world layout is verified.** The prototype draws from one
+  stream in a fixed order: village houses, then floating lanterns, then trees. The lanterns are
+  the sharp end of it — their 120 numbers come off the stream only after every village house has
+  drawn its five, so if a village consumed the wrong count or drew in the wrong order, they all
+  land somewhere else. Five of them are checked against the JavaScript, plus the stone lantern
+  count, which depends on every exclusion circle being registered.
+
+### Primitives rewritten
+1. **Boxes were shading like rounded blobs.** `add_box` shared eight corners, so every corner
+   averaged three face normals. `BoxGeometry` has per-face normals and nearly every building
+   here is a box, so boxes now emit four vertices per face. Cylinder end caps got the same
+   treatment — they had been blending into the wall and rounding off a hard rim.
+2. **New primitives** to match the prototype's vocabulary: `add_pyramid` for `roofGeo`,
+   `add_sphere`, `add_bent_bar` for `bendBox`, and `append_transformed` for the merge.
+   The pyramid is worth a note: the prototype's roof is a 4-sided cone of radius 1 turned 45°,
+   so after scaling the base corners sit at 0.707 × scale and the base is 1.414 × scale across.
+   The roof is *wider* than the scale factor, and that overhang is what gives the eaves.
+
+### One thing that turned out not to be a bug
+Seen from far off through fog, the village houses looked like they were floating above the bank.
+Before changing anything I measured it: the analytic `terrainH` the houses are placed at differs
+from the tessellated mesh surface by at most 0.5 m at those positions, and a fixed camera over
+the village shows them sitting correctly on the ground. It was a misread of a hazy distant view.
+Recorded because the check is the useful part, not the outcome.
+
+### Differences from the prototype
+3. **The builders live in one file, not six.** `docs/PORT_PLAN.md` proposed
+   `scripts/builders/*.gd` per structure; each is fifteen to thirty lines, so they read better
+   together, matching the `boat.gd` / `boat_builder.gd` split already in use.
+4. **Merged at build time rather than after.** The prototype assembles scene graphs and then
+   flattens them with `bakeStatic()`. Here each structure is built into per-material buffers and
+   appended under its transform, which reaches the same place without the intermediate nodes.
+5. **Stone lantern light falloff** carries over exactly, as the bow lantern's did: three.js
+   legacy `pow(1 - d/range, decay)` is Godot's `omni_attenuation` formula, so range 16 and
+   attenuation 2 are unchanged. Only energy is engine-specific.
+
+### What to look for when you press F5
+The river has landmarks now. Drift carries you past them, or hold W to get there faster.
+
+- **Heading downstream from the start** (z = -335): a village on the right bank, then a torii
+  standing at the water's edge with a shrine, a second gate and flanking stone lanterns behind
+  it, a stilt house out over the water on its piles, an arched vermillion bridge, the five
+  storey pagoda, and more villages and gates beyond.
+- **Stone lanterns** every 30 m or so along the banks, alternating sides, skipping anywhere the
+  ground is wrong or a landmark is in the way. Only the nearest two actually cast light — watch
+  them hand off as you pass.
+- **Floating paper lanterns** drifting down the river around you, glowing, reflecting on the
+  water, and nudging out of the way if you run into them.
+- **Windows** lit at night and nearly out by day — try the Time button.
+- **Frame time:** 2.63 ms (380 fps) at 1280×720, unchanged, because the whole world's
+  architecture is 11 draw calls.

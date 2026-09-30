@@ -79,7 +79,7 @@ static func _check(label: String, got: float, want: float, verbose: bool) -> int
 	# The reference values are printed to 9 decimal places, so compare at that precision.
 	var delta: float = absf(got - want)
 	if delta > TOLERANCE * maxf(1.0, absf(want) * 10.0):
-		push_error("[noise_check] %s = %.9f, expected %.9f (delta %.3e)" % [label, got, want, delta])
+		push_error("[noise_check] %s = %.9f, expected %.9f (delta %.9f)" % [label, got, want, delta])
 		return 1
 	if verbose:
 		print("[noise_check] %s = %.9f" % [label, got])

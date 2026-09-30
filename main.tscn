@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=23 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
@@ -12,6 +12,9 @@
 [ext_resource type="PackedScene" path="res://scenes/ui.tscn" id="10_ui"]
 [ext_resource type="Script" path="res://scripts/lightning.gd" id="11_lightning"]
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="12_audio"]
+[ext_resource type="Script" path="res://scripts/world_rng.gd" id="13_rng"]
+[ext_resource type="Script" path="res://scripts/architecture.gd" id="14_arch"]
+[ext_resource type="Script" path="res://scripts/floating_lanterns.gd" id="15_lanterns"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -70,9 +73,11 @@ fog_sky_affect = 0.0
 volumetric_fog_density = 0.015
 volumetric_fog_length = 120.0
 
-[node name="Main" type="Node3D" node_paths=PackedStringArray("environment_controller")]
+[node name="Main" type="Node3D" node_paths=PackedStringArray("environment_controller", "architecture", "floating_lanterns")]
 script = ExtResource("1_main")
 environment_controller = NodePath("EnvironmentController")
+architecture = NodePath("Architecture")
+floating_lanterns = NodePath("FloatingLanterns")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_night")
@@ -103,6 +108,43 @@ script = ExtResource("3_env")
 process_priority = 0
 world_environment = NodePath("../WorldEnvironment")
 sun_light = NodePath("../Sun")
+
+[node name="WorldRng" type="Node" parent="."]
+script = ExtResource("13_rng")
+
+[node name="Architecture" type="Node3D" parent="." node_paths=PackedStringArray("environment_controller", "boat", "world_rng", "shore_light_a", "shore_light_b")]
+process_priority = 15
+script = ExtResource("14_arch")
+environment_controller = NodePath("../EnvironmentController")
+boat = NodePath("../Boat")
+world_rng = NodePath("../WorldRng")
+shore_light_a = NodePath("ShoreLightA")
+shore_light_b = NodePath("ShoreLightB")
+
+[node name="ShoreLightA" type="OmniLight3D" parent="Architecture"]
+light_color = Color(1, 0.705882, 0.352941, 1)
+light_energy = 1.0
+omni_range = 16.0
+omni_attenuation = 2.0
+
+[node name="ShoreLightB" type="OmniLight3D" parent="Architecture"]
+light_color = Color(1, 0.705882, 0.352941, 1)
+light_energy = 1.0
+omni_range = 16.0
+omni_attenuation = 2.0
+
+[node name="FloatingLanterns" type="Node3D" parent="." node_paths=PackedStringArray("environment_controller", "boat", "world_rng", "paper", "base")]
+process_priority = 15
+script = ExtResource("15_lanterns")
+environment_controller = NodePath("../EnvironmentController")
+boat = NodePath("../Boat")
+world_rng = NodePath("../WorldRng")
+paper = NodePath("Paper")
+base = NodePath("Base")
+
+[node name="Paper" type="MultiMeshInstance3D" parent="FloatingLanterns"]
+
+[node name="Base" type="MultiMeshInstance3D" parent="FloatingLanterns"]
 
 [node name="Terrain" type="MeshInstance3D" parent="."]
 script = ExtResource("4_terrain")

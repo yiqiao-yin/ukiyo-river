@@ -1,6 +1,7 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/weather.gd" id="1_weather"]
+[ext_resource type="Texture2D" path="res://assets/generated/petal.png" id="2_petal"]
 
 [sub_resource type="ParticleProcessMaterial" id="Process_rain"]
 lifetime_randomness = 0.2
@@ -47,10 +48,11 @@ shading_mode = 0
 cull_mode = 2
 depth_draw_mode = 2
 billboard_mode = 1
-albedo_color = Color(0.871367, 0.467784, 0.552011, 0.85)
+albedo_color = Color(1, 1, 1, 0.9)
+albedo_texture = ExtResource("2_petal")
 
 [sub_resource type="QuadMesh" id="Quad_petals"]
-size = Vector2(0.13, 0.13)
+size = Vector2(0.16, 0.16)
 
 [node name="Weather" type="Node3D" node_paths=PackedStringArray("rain", "petals")]
 script = ExtResource("1_weather")

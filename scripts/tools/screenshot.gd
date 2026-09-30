@@ -15,10 +15,12 @@ extends Node
 var _frames: int = 0
 var _timed_frames: int = 0
 var _timed_seconds: float = 0.0
+var _main: Node
 
 
 func _ready() -> void:
-	add_child(load("res://main.tscn").instantiate())
+	_main = load("res://main.tscn").instantiate()
+	add_child(_main)
 
 
 func _process(delta: float) -> void:
@@ -45,4 +47,8 @@ func _process(delta: float) -> void:
 	# the viewport texture is still live at shutdown and Godot reports leaked texture RIDs.
 	image = null
 	await get_tree().process_frame
-	get_tree().quit()
+	# Leave through the same door the game does, so this run exercises the real shutdown.
+	if _main != null and _main.has_method("shutdown_and_quit"):
+		_main.shutdown_and_quit()
+	else:
+		get_tree().quit()

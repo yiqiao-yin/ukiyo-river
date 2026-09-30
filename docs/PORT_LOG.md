@@ -646,12 +646,49 @@ JavaScript under Node:
 
 ## Still open
 
-- The `1 ObjectDB instance was leaked at exit` warning is Godot's audio server holding the
-  generator's playback at shutdown. The project keeps no reference to it and deleting the
-  `AudioStreamPlayer` makes it vanish; nothing in project code can release it.
-- Falling petals read as hard squares up close. The prototype's are identical (`THREE.Points`,
-  size 0.13), so this is faithful rather than broken, but a soft texture would look better.
 - The night ambient level is the one lighting number worth an eye - see difference 2.
+- Rain splash and drip drops are still untextured squares, like the prototype's. They are 4 cm
+  and only read as squares from inside the boat; the petal texture below is the pattern to
+  follow if they ever bother you.
+
+---
+
+# Closing the two open items
+
+## The leaked ObjectDB instance - fixed
+
+This turned out to be [godotengine/godot#95484](https://github.com/godotengine/godot/issues/95484),
+closed as not planned: quitting while audio is playing frees Godot's internal player without
+clearing its stream reference, so the generator's playback is never released.
+
+Getting to a fix took three attempts. Not caching the playback did nothing. Stopping the player
+in `_exit_tree` did nothing. Nor did the issue's suggested workaround of nulling the stream -
+from `_exit_tree`, because by then there are no more frames and the audio server never gets to
+let go. An experiment that stopped the player a second before quitting came out clean, which
+identified the real constraint: the release needs **time**, not just the right call.
+
+So the game now owns its own shutdown. `auto_accept_quit` is off, `main.gd` catches the close
+request, calls `AudioDirector.shutdown()`, waits, and then quits.
+
+The wait is wall-clock, not frames. Two `process_frame` awaits looked fine and then leaked
+intermittently - the audio server releases on its own thread and was being raced. A 0.2 s timer
+is stable across repeated runs.
+
+**`--quit-after 120` is no longer the check command.** It force-quits between frames, so it
+skips the game's shutdown entirely - it could never have caught a problem in it, and it reports
+this leak no matter what the project does. `scripts/tools/run_check.gd` replaces it: same 120
+frames, then the close request a window manager would send. It exercises the real path, and
+`CLAUDE.md` has been updated. The screenshot tool leaves through the same door.
+
+## Petals as hard squares - fixed
+
+`assets/generated/petal.png`: one cherry petal, rounded at the tip with the notch a real petal
+has, deeper pink at the base and almost white at the edge, alpha cut out of the quad. Generated
+by the same script as everything else.
+
+This is a **deliberate improvement on the prototype**, not a port of it - `THREE.Points` with no
+map draws hard squares, and that is genuinely what the original does. The quad went from 0.13 m
+to 0.16 m so the shape has room to read.
 
 ---
 

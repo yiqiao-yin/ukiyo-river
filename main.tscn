@@ -62,12 +62,13 @@ fog_sky_affect = 0.0
 volumetric_fog_density = 0.015
 volumetric_fog_length = 120.0
 
-[node name="Main" type="Node3D" node_paths=PackedStringArray("environment_controller", "architecture", "floating_lanterns", "trees")]
+[node name="Main" type="Node3D" node_paths=PackedStringArray("environment_controller", "architecture", "floating_lanterns", "trees", "audio_director")]
 script = ExtResource("1_main")
 environment_controller = NodePath("EnvironmentController")
 architecture = NodePath("Architecture")
 floating_lanterns = NodePath("FloatingLanterns")
 trees = NodePath("Trees")
+audio_director = NodePath("AudioDirector")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_night")

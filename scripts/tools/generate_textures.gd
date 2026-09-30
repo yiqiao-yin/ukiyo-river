@@ -44,6 +44,7 @@ func _init() -> void:
 	_save(_fabric(Vector3(86, 58, 40), false, 27, 256), "obi.png")
 	_save(_bamboo(), "bamboo.png")
 	_save(_lantern(), "lantern.png")
+	_save(_petal(), "petal.png")
 
 	print("[textures] done")
 	quit()
@@ -506,3 +507,31 @@ func _kawa(c: Canvas2D, cx: float, cy: float, size: float) -> void:
 		Vector2(cx + size * 0.34, cy - half * 0.92), Vector2(cx + size * 0.34, cy + half * 0.9),
 		stroke, ink
 	)
+
+
+## A single cherry petal, alpha cut out of the quad.
+##
+## Not from the prototype: its petals are untextured THREE.Points, which render as hard squares.
+## Faithful, but they read as placeholder confetti against the sky, so they get a shape here.
+## Rounded at the tip with the notch a cherry petal has, and paler toward the edge.
+func _petal() -> Canvas2D:
+	var size: int = 64
+	var c: Canvas2D = Canvas2D.create(size, size)
+	var half: float = float(size) * 0.5
+	for py: int in size:
+		for px: int in size:
+			# Normalised to [-1, 1], slightly taller than wide.
+			var u: float = (float(px) + 0.5 - half) / (half * 0.78)
+			var v: float = (float(py) + 0.5 - half) / half
+			var r: float = sqrt(u * u + v * v)
+			# The notch: a bite taken out of the wide end.
+			var notch: float = sqrt(u * u / 0.36 + (v - 1.15) * (v - 1.15) / 0.16)
+			var alpha: float = smoothstep(1.0, 0.82, r) * smoothstep(0.85, 1.05, notch)
+			if alpha <= 0.002:
+				continue
+			# Deeper pink at the base, almost white at the tip.
+			var tone: float = clampf((v + 1.0) * 0.5, 0.0, 1.0)
+			var colour: Color = Canvas2D.rgb(252, 232, 238).lerp(Canvas2D.rgb(232, 150, 172), tone)
+			colour.a = alpha
+			c.blend(px, py, colour)
+	return c

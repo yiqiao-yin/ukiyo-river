@@ -66,11 +66,19 @@ func _ready() -> void:
 	player.play()
 
 
-## Stop the generator before the tree is torn down. Left running, the audio server still holds
-## its playback at shutdown and Godot reports a leaked ObjectDB instance.
-func _exit_tree() -> void:
-	if player != null and player.playing:
+## Releases the generator's playback. Godot frees the internal player at quit without clearing
+## its stream reference, so the playback is never released and is reported as a leaked ObjectDB
+## instance (godotengine/godot#95484, closed as not planned).
+##
+## Doing this from _exit_tree is too late: the audio server needs a frame to let go, and there
+## are no more frames once teardown has started. main.gd calls this on the close request and
+## then waits before quitting.
+func shutdown() -> void:
+	if player == null:
+		return
+	if player.playing:
 		player.stop()
+	player.stream = null
 
 
 func _process(_delta: float) -> void:
@@ -112,7 +120,9 @@ func thunder(nearness: float) -> void:
 ## The playback is fetched per fill rather than cached: a cached reference into the audio
 ## server outlives shutdown and is reported as a leaked ObjectDB instance on exit.
 func _fill() -> void:
-	if player == null:
+	# Nothing to push once shutdown() has stopped the player, and asking a stopped player for
+	# its playback is an error.
+	if player == null or not player.playing:
 		return
 	var playback := player.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback == null:

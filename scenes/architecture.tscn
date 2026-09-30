@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/architecture.gd" id="1_architecture"]
+
+[node name="Architecture" type="Node3D" node_paths=PackedStringArray("shore_light_a", "shore_light_b")]
+script = ExtResource("1_architecture")
+shore_light_a = NodePath("ShoreLightA")
+shore_light_b = NodePath("ShoreLightB")
+
+[node name="ShoreLightA" type="OmniLight3D" parent="."]
+light_color = Color(1, 0.705882, 0.352941, 1)
+light_energy = 1.0
+omni_range = 16.0
+omni_attenuation = 2.0
+
+[node name="ShoreLightB" type="OmniLight3D" parent="."]
+light_color = Color(1, 0.705882, 0.352941, 1)
+light_energy = 1.0
+omni_range = 16.0
+omni_attenuation = 2.0

@@ -25,9 +25,15 @@ const PAPER: String = "paper"
 const GENERATED: String = "res://assets/generated/"
 
 
-## Builds a fresh set. Each caller gets its own so the wetness animation on one does not
-## surprise the other.
+## One shared table, as the prototype has one `BM`. This matters: the rain roughness is applied
+## across the whole table once per frame, so if the boat and the boatman each built their own,
+## his kimono, cape and straw would never get wet.
+static var _shared: Dictionary = {}
+
+
 static func build() -> Dictionary:
+	if not _shared.is_empty():
+		return _shared
 	var out: Dictionary = {}
 	# Prototype repeat values become uv1_scale.
 	out[HULL] = _textured("hull", "hull_bump", Vector2(1, 3), 0.55, true)
@@ -59,6 +65,7 @@ static func build() -> Dictionary:
 	paper.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	paper.albedo_texture = load(GENERATED + "lantern.png")
 	out[PAPER] = paper
+	_shared = out
 	return out
 
 

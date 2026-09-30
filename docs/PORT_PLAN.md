@@ -276,3 +276,24 @@ scripts/builders/  torii.gd house.gd pagoda.gd toro.gd bridge.gd stilt.gd tree_b
 scripts/tools/     noise_check.gd generate_textures.gd canvas2d.gd
 shaders/   sky.gdshader water.gdshader foliage.gdshader trunk.gdshader lightning.gdshader
 ```
+
+---
+
+## 5. As built
+
+Audited against the tree after Phase 8. The plan held, with three departures, all deliberate:
+
+- **The six structure builders are one file.** `scripts/architecture_builder.gd` rather than
+  `scripts/builders/torii.gd`, `house.gd`, `pagoda.gd`, `toro.gd`, `bridge.gd`, `stilt.gd`. Each
+  is fifteen to thirty lines and they read better together, matching the
+  `boat.gd` / `boat_builder.gd` split already in use.
+- **No `lightning.gdshader`.** The bolt is an unshaded additive `StandardMaterial3D` over an
+  `ImmediateMesh`; it needs no shader code.
+- **Extra files the plan did not anticipate:** `scripts/boat_materials.gd` (the shared `BM`
+  table), `scripts/world_rng.gd` (the one random stream the world is laid out from),
+  `shaders/tree_sway.gdshaderinc`, `scripts/rain_splashes.gd`, and four verification tools -
+  `noise_check`, `boat_check`, `audio_check`, `world_check` - plus `screenshot.gd`, which is
+  how every phase was actually checked.
+
+Three functions in the prototype are dead code and were correctly not ported: `cylBetween`,
+and the `iron` and `indigo` materials, each defined once and never used.

@@ -1,21 +1,20 @@
-[gd_scene load_steps=24 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=21 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
 [ext_resource type="Script" path="res://scripts/environment_controller.gd" id="3_env"]
-[ext_resource type="Script" path="res://scripts/terrain.gd" id="4_terrain"]
-[ext_resource type="Script" path="res://scripts/water.gd" id="5_water"]
+[ext_resource type="PackedScene" path="res://scenes/terrain.tscn" id="4_terrain"]
+[ext_resource type="PackedScene" path="res://scenes/water.tscn" id="5_water"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="6_camera"]
-[ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water_shader"]
 [ext_resource type="PackedScene" path="res://scenes/boat.tscn" id="8_boat"]
 [ext_resource type="PackedScene" path="res://scenes/weather.tscn" id="9_weather"]
 [ext_resource type="PackedScene" path="res://scenes/ui.tscn" id="10_ui"]
 [ext_resource type="Script" path="res://scripts/lightning.gd" id="11_lightning"]
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="12_audio"]
 [ext_resource type="Script" path="res://scripts/world_rng.gd" id="13_rng"]
-[ext_resource type="Script" path="res://scripts/architecture.gd" id="14_arch"]
+[ext_resource type="PackedScene" path="res://scenes/architecture.tscn" id="14_arch"]
 [ext_resource type="Script" path="res://scripts/floating_lanterns.gd" id="15_lanterns"]
-[ext_resource type="Script" path="res://scripts/trees.gd" id="16_trees"]
+[ext_resource type="PackedScene" path="res://scenes/trees.tscn" id="16_trees"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -29,17 +28,6 @@ shader_parameter/u_cloud = 1.0
 shader_parameter/u_flash = 0.0
 shader_parameter/u_stars = 1.0
 shader_parameter/u_haze = 0.0
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
-render_priority = 0
-shader = ExtResource("7_water_shader")
-shader_parameter/u_refl_boost = 0.3
-shader_parameter/u_roughness = 0.02
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_water"]
-size = Vector2(900, 900)
-subdivide_width = 109
-subdivide_depth = 109
 
 [sub_resource type="StandardMaterial3D" id="Mat_bolt"]
 transparency = 1
@@ -114,26 +102,11 @@ sun_light = NodePath("../Sun")
 [node name="WorldRng" type="Node" parent="."]
 script = ExtResource("13_rng")
 
-[node name="Architecture" type="Node3D" parent="." node_paths=PackedStringArray("environment_controller", "boat", "world_rng", "shore_light_a", "shore_light_b")]
+[node name="Architecture" parent="." node_paths=PackedStringArray("environment_controller", "boat", "world_rng") instance=ExtResource("14_arch")]
 process_priority = 15
-script = ExtResource("14_arch")
 environment_controller = NodePath("../EnvironmentController")
 boat = NodePath("../Boat")
 world_rng = NodePath("../WorldRng")
-shore_light_a = NodePath("ShoreLightA")
-shore_light_b = NodePath("ShoreLightB")
-
-[node name="ShoreLightA" type="OmniLight3D" parent="Architecture"]
-light_color = Color(1, 0.705882, 0.352941, 1)
-light_energy = 1.0
-omni_range = 16.0
-omni_attenuation = 2.0
-
-[node name="ShoreLightB" type="OmniLight3D" parent="Architecture"]
-light_color = Color(1, 0.705882, 0.352941, 1)
-light_energy = 1.0
-omni_range = 16.0
-omni_attenuation = 2.0
 
 [node name="FloatingLanterns" type="Node3D" parent="." node_paths=PackedStringArray("environment_controller", "boat", "world_rng", "paper", "base")]
 process_priority = 15
@@ -148,25 +121,20 @@ base = NodePath("Base")
 
 [node name="Base" type="MultiMeshInstance3D" parent="FloatingLanterns"]
 
-[node name="Trees" type="Node3D" parent="." node_paths=PackedStringArray("environment_controller", "world_rng", "architecture")]
+[node name="Trees" parent="." node_paths=PackedStringArray("environment_controller", "world_rng", "architecture") instance=ExtResource("16_trees")]
 process_priority = 15
-script = ExtResource("16_trees")
 environment_controller = NodePath("../EnvironmentController")
 world_rng = NodePath("../WorldRng")
 architecture = NodePath("../Architecture")
 
-[node name="Terrain" type="MeshInstance3D" parent="."]
-script = ExtResource("4_terrain")
+[node name="Terrain" parent="." instance=ExtResource("4_terrain")]
 
 [node name="Boat" parent="." node_paths=PackedStringArray("environment_controller") instance=ExtResource("8_boat")]
 process_priority = 10
 environment_controller = NodePath("../EnvironmentController")
 
-[node name="Water" type="MeshInstance3D" parent="." node_paths=PackedStringArray("environment_controller", "boat")]
-mesh = SubResource("PlaneMesh_water")
-material_override = SubResource("ShaderMaterial_water")
+[node name="Water" parent="." node_paths=PackedStringArray("environment_controller", "boat") instance=ExtResource("5_water")]
 process_priority = 15
-script = ExtResource("5_water")
 environment_controller = NodePath("../EnvironmentController")
 boat = NodePath("../Boat")
 

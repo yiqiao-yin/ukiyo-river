@@ -652,3 +652,49 @@ JavaScript under Node:
 - Falling petals read as hard squares up close. The prototype's are identical (`THREE.Points`,
   size 0.13), so this is faithful rather than broken, but a soft texture would look better.
 - The night ambient level is the one lighting number worth an eye - see difference 2.
+
+---
+
+# Post-port audit
+
+The plan and the prototype re-checked against the tree after Phase 8. Two real gaps found and
+fixed, both committed with this entry.
+
+## Fixed: the boatman never got wet
+
+The prototype keeps **one** `BM` material table and scales its roughness across the whole thing
+once per frame (`for (const k in BM) BM[k].roughness = BASE_ROUGH[k]*(1 - 0.45*env.rain)`). That
+table is shared by the boat and the boatman, so his kimono, straw cape, hat and skin go glossy in
+the rain along with the hull.
+
+The port had `BoatMaterials.build()` handing each caller a fresh set — with a comment
+confidently explaining why that was better. It was not: only the boat's set reached
+`apply_wetness`, so the boatman stayed matte in a downpour. `build()` now returns one shared
+table, as the prototype has one.
+
+## Fixed: four systems had no scene of their own
+
+`CLAUDE.md` asks for one scene and one script per major system. Boat, boatman, weather and UI
+had scenes; terrain, water, trees and architecture were bare nodes declared inline in
+`main.tscn`. They now have `scenes/terrain.tscn`, `water.tscn`, `trees.tscn` and
+`architecture.tscn`, instanced into `main.tscn` — which also moves the water mesh and its
+material, and the two shore lights, out of the root scene and next to the system that owns them.
+
+## Checked and correct
+
+- Every function and constant in the prototype maps to a port or to a documented drop. The only
+  unported ones are `cylBetween`, `iron` and `indigo`, which are dead code in the original.
+- The whole per-frame block of the prototype's `frame()` has a counterpart: fog colour and
+  density, ambient and sun, the lamp and window glow with their flicker, the lantern light,
+  paper and sprite, the wet-surface roughness, shore lights, rain tint and opacity, and every
+  sky, tree and water uniform.
+- No stubs, TODOs or unimplemented placeholders anywhere in `scripts/` or `shaders/`.
+- All five startup checks still pass after both fixes, and frame time is unchanged at 2.64 ms
+  (379 fps) at 1280×720.
+
+## One more small difference, now recorded
+
+**Wheel zoom is stepped, not continuous.** The prototype scales distance by
+`exp(deltaY * 0.001)`, using the scroll delta's magnitude. Godot reports wheel input as discrete
+button events with no magnitude, so each notch applies a fixed 1.12× factor. The clamps
+(4.5 m to 40 m) are the prototype's.

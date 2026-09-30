@@ -381,3 +381,77 @@ The river has landmarks now. Drift carries you past them, or hold W to get there
 - **Windows** lit at night and nearly out by day — try the Time button.
 - **Frame time:** 2.63 ms (380 fps) at 1280×720, unchanged, because the whole world's
   architecture is 11 draw calls.
+
+---
+
+## Phase 6: trees
+
+### Built
+- `scripts/tools/canvas2d.gd` — a small software rasteriser. Godot's `Image` has no drawing API
+  at all, so the canvas operations the prototype actually uses (filled rects, stroked lines and
+  polylines, quadratic curves, rotated filled ellipses with an optional radial gradient, vertical
+  gradients) are implemented directly.
+- `scripts/tools/generate_textures.gd` — writes the painted textures to `assets/generated/` once.
+  Three barks with their bump variants, the cedar frond, the pine tuft and the cherry spray.
+  Each keeps the prototype's mulberry32 seed, so the grain and the scatter come out of the same
+  sequence. Takes about two seconds.
+- `scripts/tree_builder.gd` — `GB.tube()` and `GB.card()`, then `buildSugi`, `buildMatsu` and
+  `buildSakura` including the recursive cherry branching. The cards carry authored normals
+  pointing out of the crown rather than out of the quad, plus an ambient occlusion term in the
+  vertex colour; that is what stops a flat quad reading as a flat quad.
+- `scripts/trees.gd` — the rejection sampler, the four species lists, and one
+  `MultiMeshInstance3D` pair per species variant with per-instance tint.
+- `shaders/tree_sway.gdshaderinc`, `trunk.gdshader`, `foliage.gdshader` — the sway injected into
+  `MeshPhongMaterial` by the prototype's `onBeforeCompile`, now a shared include. The per-instance
+  phase offset comes from `MODEL_MATRIX[3]`, which is where a MultiMesh keeps what the prototype
+  reads out of `instanceMatrix[3]`.
+
+### The forest is verified tree for tree
+The scatter loop is the most fragile thing in the port: a rejected attempt consumes three random
+numbers and stops, an accepted one consumes six, and it runs at the tail of the shared stream
+after every village and floating lantern. Get the branch wrong anywhere and the whole forest
+moves. `world_check` now asserts the four species counts and the first placement of each against
+the JavaScript:
+
+```
+851 cedar near, 1142 cedar far, 196 pine, 111 cherry
+```
+
+All four match exactly, as do the positions, which means the entire chain — villages, lanterns,
+then 9000 scatter attempts with their rejections — is drawing the prototype's numbers in the
+prototype's order.
+
+### Differences from the prototype
+1. **Trunks are wound outward.** The prototype's `GB.tube()` emits triangles whose front faces
+   point *into* the tube, while its trunk material is single sided — so its trunks are drawn
+   from the inside of the far wall. At trunk scale that still reads as a trunk, which is
+   presumably why it went unnoticed. Winding them outward is the only defensible reading.
+2. **A headless script, not an EditorScript.** `docs/PORT_PLAN.md` proposed an EditorScript for
+   the textures; a `--script` tool does the same job once and can be run from WSL without
+   opening the editor, which is how everything else in this project is driven.
+3. **Not pixel-identical textures.** Same draw calls, same seeds, same structure, but the
+   rasteriser is not the browser's — line joins and antialiasing differ.
+4. **Far cedars are no longer hidden from reflections.** The prototype keeps a `treeFarMeshes`
+   list and hides it while rendering its mirror pass. That pass is gone (Phase 2), so there is
+   nothing to hide them from; screen-space reflections simply reflect what is on screen.
+5. **Bump maps become normal maps.** three.js `bumpMap` perturbs the normal from a height
+   gradient; Godot wants a normal map, so the greyscale bark variants are fed through
+   `NORMAL_MAP` with a modest depth. Close, not identical.
+
+### What to look for when you press F5
+The banks are forested now.
+
+- **Cedar** everywhere, near ones with crossed sprays and far ones cheaper and slightly paler,
+  thinning out as the ground rises.
+- **Black pine**, low and leaning, close to the water.
+- **Cherry** in blossom, only within 48 m of the river — look for the pink among the green.
+- **Wind.** Switch Weather between Clear and Storm and watch the whole forest lean harder and
+  the foliage flutter: the sway scales with the same wind value that drives the waves and rain.
+- **Frame time:** 2.77 ms (361 fps) at 1280×720 with 2300 trees — unchanged, because each
+  species variant is a single multimesh draw.
+
+### Still open
+- Falling petals read as hard pink squares up close. The prototype's are the same size and
+  equally square (`THREE.Points`, size 0.13), so this is faithful rather than broken, but it is
+  the one thing on screen that looks more like a placeholder than a choice. Easy to soften with
+  a texture if you would rather.

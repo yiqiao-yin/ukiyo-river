@@ -23,7 +23,21 @@ const EXPECTED_FLOATERS: Dictionary = {
 const LABELS: PackedStringArray = ["z", "offset", "phase"]
 
 
-static func run(lanterns: FloatingLanterns, architecture: Architecture) -> int:
+## Prototype tree scatter: how many of each species survive the rejection loop, and where the
+## first of each lands. The loop consumes three numbers for a rejected attempt and six for an
+## accepted one, so these only line up if that branch is exact.
+const EXPECTED_TREE_COUNTS: Dictionary = {
+	"cedar_near": 851, "cedar_far": 1142, "pine": 196, "cherry": 111,
+}
+## species -> [x, height, z, yaw draw, size draw]
+const EXPECTED_FIRST_TREE: Dictionary = {
+	"cedar_near": [-26.967705, 8.296433, -423.019126, 0.150385, 0.933384],
+	"pine": [-10.133606, 6.945399, 267.354482, 0.130622, 0.436064],
+	"cherry": [54.633985, 4.749505, 112.128975, 0.822546, 0.582020],
+}
+
+
+static func run(lanterns: FloatingLanterns, architecture: Architecture, trees: Trees) -> int:
 	var failures: int = 0
 
 	if lanterns == null or lanterns.floaters.size() != FloatingLanterns.COUNT:
@@ -51,6 +65,27 @@ static func run(lanterns: FloatingLanterns, architecture: Architecture) -> int:
 		if spots != 23:
 			push_error("[world_check] %d stone lanterns placed, expected 23" % spots)
 			failures += 1
+
+	if trees != null and not trees.placements.is_empty():
+		for species: String in EXPECTED_TREE_COUNTS:
+			var count: int = (trees.placements[species] as Array).size()
+			if count != int(EXPECTED_TREE_COUNTS[species]):
+				push_error("[world_check] %d %s trees, expected %d" % [
+					count, species, EXPECTED_TREE_COUNTS[species],
+				])
+				failures += 1
+		for species: String in EXPECTED_FIRST_TREE:
+			var list: Array = trees.placements[species]
+			if list.is_empty():
+				continue
+			var want: Array = EXPECTED_FIRST_TREE[species]
+			for i: int in 5:
+				var delta: float = absf(float(list[0][i]) - float(want[i]))
+				if delta > 1e-5 * maxf(1.0, absf(float(want[i]))):
+					push_error("[world_check] first %s tree field %d = %.6f, expected %.6f" % [
+						species, i, list[0][i], want[i],
+					])
+					failures += 1
 
 	if failures == 0:
 		print("[world_check] world laid out from the prototype's random sequence")

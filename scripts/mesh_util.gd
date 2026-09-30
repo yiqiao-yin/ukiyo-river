@@ -39,10 +39,24 @@ class Buffer:
 	var vertices := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
+	## Filled only by vert_shaded. When present these are used instead of computing normals
+	## from the winding, which the trees need: their foliage is flat cards standing in for a
+	## canopy, so the normals have to point out of the crown rather than out of the quad.
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
 
 	func vert(p: Vector3, uv: Vector2 = Vector2.ZERO) -> int:
 		vertices.push_back(p)
 		uvs.push_back(uv)
+		return vertices.size() - 1
+
+	## A vertex carrying its own normal and an ambient occlusion value in the colour channel -
+	## the prototype's GB.vert().
+	func vert_shaded(p: Vector3, normal: Vector3, uv: Vector2, ao: float) -> int:
+		vertices.push_back(p)
+		uvs.push_back(uv)
+		normals.push_back(normal)
+		colors.push_back(Color(ao, ao, ao, 1.0))
 		return vertices.size() - 1
 
 	## Corners counter-clockwise as seen from outside, the prototype's order.
@@ -66,7 +80,12 @@ class Buffer:
 		var arrays: Array = []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = vertices
-		arrays[Mesh.ARRAY_NORMAL] = MeshUtil.compute_normals(vertices, indices)
+		if normals.size() == vertices.size():
+			arrays[Mesh.ARRAY_NORMAL] = normals
+		else:
+			arrays[Mesh.ARRAY_NORMAL] = MeshUtil.compute_normals(vertices, indices)
+		if colors.size() == vertices.size():
+			arrays[Mesh.ARRAY_COLOR] = colors
 		arrays[Mesh.ARRAY_TEX_UV] = uvs
 		arrays[Mesh.ARRAY_INDEX] = indices
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

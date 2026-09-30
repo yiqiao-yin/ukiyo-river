@@ -33,6 +33,10 @@ var materials: Dictionary = {}
 ## Six loose pieces per side: upper arm, forearm, sleeve, elbow, shoulder, hand.
 var _arms: Array[Dictionary] = []
 
+## Where the hand ended up after _solve_arm clamped it to the arm's reach. A member rather than
+## a second return value: this runs twice a frame and returning an Array would allocate.
+var _solved_hand: Vector3 = Vector3.ZERO
+
 
 func _ready() -> void:
 	position = STAND
@@ -72,11 +76,11 @@ func animate(phase: float, activity: float) -> void:
 		)
 		hand_point.x -= 0.035 * side
 
-		var solved: Array = _solve_arm(
+		var elbow_point: Vector3 = _solve_arm(
 			shoulder_point, hand_point, Vector3(side * 0.8, -0.8, -0.4)
 		)
-		var elbow_point: Vector3 = solved[0]
-		hand_point = solved[1]
+		# _solve_arm pulls the hand in if the pole is out of reach; take the clamped one back.
+		hand_point = _solved_hand
 
 		_orient(arm["upper"], shoulder_point, elbow_point)
 		_orient(arm["lower"], elbow_point, hand_point)
@@ -90,8 +94,8 @@ func animate(phase: float, activity: float) -> void:
 		hand.basis = (arm["lower"] as Node3D).basis
 
 
-## solveArm() - two-bone IK. Returns the elbow, plus the hand clamped to arm's reach.
-func _solve_arm(from: Vector3, to: Vector3, hint: Vector3) -> Array:
+## solveArm() - two-bone IK. Returns the elbow; the clamped hand lands in _solved_hand.
+func _solve_arm(from: Vector3, to: Vector3, hint: Vector3) -> Vector3:
 	var delta: Vector3 = to - from
 	var d: float = delta.length()
 	var reach: float = UPPER_ARM + LOWER_ARM - 0.005
@@ -99,14 +103,15 @@ func _solve_arm(from: Vector3, to: Vector3, hint: Vector3) -> Array:
 		delta *= reach / d
 		to = from + delta
 		d = reach
+	_solved_hand = to
 	if d < 1e-5:
-		return [from, to]
+		return from
 	var dir: Vector3 = delta / d
 	# Distance along the shoulder-to-hand line where the elbow projects, and how far off it.
 	var x: float = (UPPER_ARM * UPPER_ARM - LOWER_ARM * LOWER_ARM + d * d) / (2.0 * d)
 	var h: float = sqrt(maxf(0.0, UPPER_ARM * UPPER_ARM - x * x))
 	var bend: Vector3 = (hint - dir * hint.dot(dir)).normalized()
-	return [from + dir * x + bend * h, to]
+	return from + dir * x + bend * h
 
 
 ## orient(m, a, b) - centre the piece between two points with its own +Y running a to b.

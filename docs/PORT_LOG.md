@@ -511,3 +511,144 @@ There is a man in the boat now.
   Everything gets glossier as the rain comes on.
 - **View: Boatman** puts you behind his eyes and hides him.
 - **Frame time:** 2.74 ms (365 fps) at 1280×720.
+
+---
+
+## Phase 8: title screen and polish
+
+### Built
+- `scenes/ui.tscn` + `scripts/ui.gd` — the prototype's overlay in full: the 浮世川 title card with
+  its heading, blurb, lacquer "Cast off" button and footnote, fading out over 0.9 s; the mark
+  top left; the control hint bottom right; and the button bar restyled as the prototype's
+  translucent panels with lamp-gold outlines on the engaged toggles.
+- `assets/fonts/ShipporiMincho-{Bold,Medium}.ttf` — the prototype's own display font, vendored
+  under the SIL Open Font License (`OFL.txt` alongside). Used for the mark and the heading;
+  Godot's default carries the Latin body text, where the prototype used Zen Kaku Gothic New.
+- Audio now waits for Cast off, as it must in a browser.
+
+### Performance
+Well inside the target on this laptop (RTX 3080 Ti), with everything running - 2300 trees, full
+rain, lightning, splashes, the boatman and all the architecture:
+
+| view | frame time | fps |
+| --- | --- | --- |
+| 1280×720, night / storm | 2.77 ms | 361 |
+| 1920×1080, night / storm | 3.91 ms | 256 |
+| 1920×1080, day / storm, wide view over the forest | 4.18 ms | 239 |
+
+The budget for 60 fps is 16.67 ms, so there is roughly a 4× margin at 1080p. Nothing needed
+optimising: the geometry was already instanced or merged (one multimesh draw per tree variant,
+eleven merged surfaces for all the architecture, two multimeshes for the floating lanterns).
+
+**One optimisation was tried and reverted.** Reusing a member buffer in the audio synthesis
+instead of allocating one per fill looked like a free win. It is not: GDScript hands back a
+reference to that member, so the next call overwrote data the caller was still holding, and the
+thunder check caught it immediately - measured peak fell from 0.94 to 0.03. The allocation
+happens a few times a second when the generator asks for data, not per frame, so it was never
+worth the risk. The comment in `render()` says so.
+
+### Per-frame allocations
+Audited across every `_process`: the boat, water, weather, trees, lanterns, architecture,
+lightning and UI all work in value types. The one heap allocation in a per-frame path was the
+boatman's IK returning an `Array` of two vectors twice a frame; it now returns the elbow and
+leaves the clamped hand in a member.
+
+---
+
+# Every known difference from the prototype
+
+Collected from all eight phases.
+
+## Unavoidable engine differences
+
+1. **Colour space.** three.js r128 in legacy mode writes hex colours straight to the
+   framebuffer; Godot converts linear → sRGB on output. Every hex constant goes in through
+   `srgb_to_linear()` so the same pixel comes out.
+2. **Light intensity is not numerically portable.** three.js and Godot use different units.
+   Attenuation *is* portable and was carried over exactly - three.js legacy uses
+   `pow(1 - d/range, decay)`, which is Godot's `omni_attenuation` formula - so the lantern
+   (range 26, decay 2) and the shore lanterns (range 16, decay 2) are unchanged. Only energy is
+   engine-specific.
+3. **No hemisphere light.** Godot 4 has none; `hemiSky`/`hemi` became
+   `ambient_light_color`/`ambient_light_energy` and the `hemiGround` term is dropped.
+4. **Fog curve.** three's `FogExp2` is `exp(−(d·density)²)`; Godot's is `exp(−d·density)`. The
+   prototype's density number is used as is, which makes the curves agree at the `1/density`
+   e-fold distance. `fog_sky_affect` is 0 because the ported sky shader does its own horizon
+   blend.
+5. **Shadows refresh every frame.** The prototype freezes its shadow map; Godot has no
+   equivalent, so `directional_shadow_max_distance = 20` stands in for its ±7 m ortho box.
+6. **Bump maps become normal maps.** three.js `bumpMap` perturbs from a height gradient; the
+   greyscale variants are fed through `NORMAL_MAP` at modest depth instead.
+7. **Triangle winding is reversed throughout.** Godot front faces wind clockwise, three.js
+   counter-clockwise. Verified against `PlaneMesh`'s own index buffer rather than assumed.
+
+## Deliberate replacements
+
+8. **Reflections.** The manual mirror-camera render pass is gone; Environment SSR plus the sky
+   supply reflections. The prototype's `+ 0.3` reflection floor is not physical and has no
+   equivalent - `u_refl_boost` on the water material stands in for it.
+9. **The ReflectionProbe was dropped after measurement.** A box probe over a 900 m river
+   captures mostly dark bank and overrides the sky reflection, turning the near water black. It
+   also cost ~10 % frame time. Worth revisiting now that there are lit windows and lanterns.
+10. **Far cedars are no longer hidden from reflections** - there is no mirror pass to hide them
+    from.
+11. **The environment cube map for wet surfaces** is gone; the sky is the reflection source.
+12. **Textures are generated once to PNG**, by a headless script rather than an EditorScript,
+    and loaded normally. Same draw calls and same seeds as the prototype, but the rasteriser is
+    not the browser's, so they are structurally identical rather than pixel identical.
+13. **The lantern's 川 is drawn as three strokes**, not typeset, so no font is needed for it.
+14. **Rain and petals are GPU particles**; drops have constant velocity, so wind goes into the
+    emission direction rather than gravity, and a single emission direction approximates a fixed
+    drift over a 22–32 m/s fall speed.
+15. **Splashes emit from sampled point clouds** (240 points on the canopy arc, and so on) rather
+    than a fresh random point per drop, at a steady rate rather than an accumulated one.
+16. **Audio runs at 22 050 Hz** with Butterworth Q on the stages where the prototype leaves Web
+    Audio's default. The bandpass keeps its explicit Q of 0.8.
+17. **The boat runs on `_process`, not `_physics_process`**, matching the prototype's single
+    loop and keeping the camera from reading a 60 Hz transform on a 300 fps frame.
+18. **Rails sample `sec()` directly** instead of fitting a Catmull-Rom spline through 33
+    stations - the same curve without the approximation.
+19. **The touch joystick is dropped.** This is a desktop build.
+20. **Body text uses Godot's default font**, not Zen Kaku Gothic New. The display font the mark
+    and heading need is vendored.
+
+## Prototype defects not carried over
+
+21. **One hull end cap faced inward.** The prototype emits both caps with identical winding -
+    harmless under `THREE.DoubleSide`, wrong here. `cap_fan()` now orients each cap from its own
+    geometry, so neither end can be wrong.
+22. **Trunk tubes faced inward.** `GB.tube()` winds its triangles into the tube while the trunk
+    material is single sided, so the prototype draws its trunks from the inside of the far wall.
+    Wound outward here.
+23. **Water stood inside the transom.** The prototype starts its hull cut-out 3 % along, leaving
+    a 25 cm band of water inside the stern. Invisible against its blurred reflections; against a
+    near-mirror surface it blew out to white. The cut-out now runs to the transom.
+24. **The hash lost precision at world scale.** `h21` multiplies by 456.21 and takes `fract`;
+    lattice coordinates in the hundreds push that where a 32-bit float resolves to ~0.008, so
+    neighbouring cells collapse onto the same value and the noise breaks into flat tiles. The
+    prototype has the same weakness and never showed it. The water shader wraps the lattice onto
+    a 512-cell torus first.
+
+## What is verified rather than assumed
+
+Five checks run on every startup, all against values captured from the prototype's own
+JavaScript under Node:
+
+- `noise_check` — 37 values across `hash2`, `vnoise`, `fbm`, `mulberry32`, `riverX`,
+  `riverSlope` and `terrainH`. Exact, including the 32-bit emulation.
+- `boat_check` — 200 simulated seconds of the Drift autopilot, through the turnaround and back,
+  covering the steering, the heading wrap, both integrators and both clamps.
+- `audio_check` — every bed rendered alone and checked for level and zero-crossing rate, since
+  headless runs are silent. The lapping bed lands at 2 × 520 / 22050, exactly its bandpass.
+- `world_check` — the floating lanterns and the whole tree scatter, which pins the entire shared
+  random sequence: villages, then lanterns, then 9000 scatter attempts with their rejections.
+- `[trees]` — the four species counts, 851 / 1142 / 196 / 111, matching the prototype exactly.
+
+## Still open
+
+- The `1 ObjectDB instance was leaked at exit` warning is Godot's audio server holding the
+  generator's playback at shutdown. The project keeps no reference to it and deleting the
+  `AudioStreamPlayer` makes it vanish; nothing in project code can release it.
+- Falling petals read as hard squares up close. The prototype's are identical (`THREE.Points`,
+  size 0.13), so this is faithful rather than broken, but a soft texture would look better.
+- The night ambient level is the one lighting number worth an eye - see difference 2.

@@ -36,6 +36,8 @@ static func _check_bed(
 ) -> int:
 	var director := AudioDirector.new()
 	director.configure()
+	# Nothing is audible before Cast off; the check is driving the synthesis directly.
+	director.started = true
 	director.set_targets(rain, wind, lap)
 	director.render(int(AudioDirector.MIX_RATE * SETTLE_SECONDS))
 	var buffer: PackedVector2Array = director.render(int(AudioDirector.MIX_RATE * MEASURE_SECONDS))
@@ -74,6 +76,7 @@ static func _check_bed(
 static func _check_thunder() -> int:
 	var director := AudioDirector.new()
 	director.configure()
+	director.started = true
 	director.set_targets(0.0, 0.0, 0.0)
 	# Let the master gain come up first, so the peak measured is the thunder's own.
 	director.render(int(AudioDirector.MIX_RATE * 1.0))

@@ -25,6 +25,10 @@ const MASTER_GAIN: float = 0.9
 ## Prototype `audio.on`, toggled by the Sound button.
 var enabled: bool = true
 
+## Set by the Cast off button. A browser cannot start audio before a user gesture either, so
+## nothing is heard behind the title card.
+var started: bool = false
+
 # Noise sources. Brown noise is the prototype's integrator: last = (last + 0.02*white)/1.02.
 var _brown_wind: float = 0.0
 var _brown_lap: float = 0.0
@@ -127,8 +131,11 @@ func render(frames: int) -> PackedVector2Array:
 	var k_wind: float = 1.0 - exp(-dt / 0.6)
 	var k_lap: float = 1.0 - exp(-dt / 0.3)
 	var k_master: float = 1.0 - exp(-dt / 0.1)
-	var master_target: float = MASTER_GAIN if enabled else 0.0
+	var master_target: float = MASTER_GAIN if (enabled and started) else 0.0
 
+	# Deliberately a fresh array per call rather than a reused member: callers hold onto what
+	# render() hands back, and a shared buffer would be overwritten under them by the next call.
+	# The allocation happens a few times a second when the generator asks for data, not per frame.
 	var buffer := PackedVector2Array()
 	buffer.resize(frames)
 

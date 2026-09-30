@@ -41,6 +41,37 @@ his weapon, so the inventory fills as you go down the river. Q cycles what is in
 Each has its own lacquer, lacing and cloth colour, so they read apart at a distance. All are
 built the same way as the boatman - lathes, cones and squashed spheres, no skinned meshes.
 
+## The asymmetry
+
+This is the point of the whole design. The player is a boatman, not a swordsman, and the
+combat says so.
+
+**He knows two things.** Sweep the staff left, sweep it right. Every click alternates: left,
+right, left. Both are the same move mirrored - same damage, same timing, same flat two-handed
+arc, because it is a punt pole and he is using it the only way he knows how. The heavy strike
+is not a technique either; it is the same sweep with his weight and his 気 behind it.
+
+A sweep only catches what is on the side it is travelling toward, plus whatever is straight
+ahead. Two boarders on opposite sides therefore have to be taken in turn, and that alternation
+is the entire tactical content of fighting with a pole.
+
+**They know four.** Even a level 1 ashigaru is trained:
+
+| technique | kanji | what it looks like | note |
+| --- | --- | --- | --- |
+| Kesa cut | 袈裟斬り | up over the shoulder, down across the body | slowest, hits hardest |
+| Body swing | 胴斬り | drawn back to the side, swung flat through the waist | widest reach |
+| Rising cut | 斬り上げ | dropped low, whipped up from the opposite hip | fastest, weakest |
+| Thrust | 突き | cocked beside the hip, driven straight out | longest, for spears |
+
+Which techniques a fighter has comes from his weapon: a katana carries the kesa cut, the body
+swing and the rising cut; a naginata swings, cuts and thrusts; a yari mostly thrusts. He never
+plays the same one twice in a row, so the pattern stays unreadable.
+
+Every technique spends its first half winding up somewhere visible before the blade comes
+back. That telegraph is what makes them fair - you can see a kesa cut coming, and it is the
+only warning you get.
+
 ## How an attack happens
 
 1. Past **z = -150** - a couple of minutes downstream - skiffs start appearing astern.
@@ -72,9 +103,10 @@ This was built as a rough first pass, deliberately.
 
 - **Balance is a first guess.** The numbers above are tuned by arithmetic, not by playing.
   Arriving at the far end under-levelled is a beating. Every constant is at the top of its file.
-- **One swing animation.** The enemy raises and chops; the player's strike drives the boatman's
-  existing poling cycle harder rather than having its own pose.
-- **No blocking or dodging.** Steering is the only defence, and only before they board.
+- **No blocking or dodging.** Steering is the only defence, and only before they board, and
+  there is no way yet to answer a telegraph other than by hitting first.
+- **The player's two sweeps are the same move mirrored.** Deliberate for now - he is a boatman -
+  but it is where new techniques should go as he levels.
 - **Hits are distance checks**, not hitboxes - anything within reach of the swing is hit,
   regardless of facing.
 - **Abandoned skiffs sit where they were left** rather than drifting away.

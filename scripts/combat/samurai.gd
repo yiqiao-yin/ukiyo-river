@@ -39,6 +39,11 @@ var state: State = State.ROWING
 var boat: Boat
 var skiff: Node3D
 
+## The technique he is in the middle of. Picked fresh each time, so he does not repeat himself.
+var _move: CombatMove
+var _moves: Array[CombatMove] = []
+var _last_move: int = -1
+
 var _swing_timer: float = 0.0
 var _recovery_timer: float = 0.0
 var _board_timer: float = 0.0
@@ -130,6 +135,9 @@ func _ready() -> void:
 	off.mesh = off_mesh
 	off.material_override = _materials[SamuraiBuilder.CLOTH]
 	add_child(off)
+
+	_moves = CombatMove.for_weapon(stats.weapon().display_name)
+	_move = _moves[0]
 
 	stats.died.connect(_on_died)
 	_rest_pose()
@@ -236,7 +244,14 @@ func _fight(dt: float) -> void:
 		_start_swing()
 
 
+## Picks a technique, avoiding the one he just used so the pattern stays unreadable.
 func _start_swing() -> void:
+	var choice: int = randi() % _moves.size()
+	if _moves.size() > 1 and choice == _last_move:
+		choice = (choice + 1 + randi() % (_moves.size() - 1)) % _moves.size()
+	_last_move = choice
+	_move = _moves[choice]
+
 	_swing_timer = 0.0001
 	# He spends chi when he has plenty, which is what makes the monk dangerous.
 	var heavy: bool = stats.chi > stats.max_chi * 0.6 and stats.spend_chi(stats.weapon().chi_cost)
@@ -247,16 +262,17 @@ func _start_swing() -> void:
 func _advance_swing(dt: float) -> void:
 	var weapon: Weapon = stats.weapon()
 	_swing_timer += dt
-	var t: float = clampf(_swing_timer / weapon.swing_time, 0.0, 1.0)
-	# Raise, then chop through.
-	_arm.rotation = Vector3(-2.2 * sin(t * PI) + 0.35, 0.0, -0.25)
-	_weapon_pivot.rotation = Vector3(-0.5 + t * 1.6, 0.0, 0.0)
+	var t: float = clampf(_swing_timer / _move.duration, 0.0, 1.0)
+	_pose(t)
 
-	if not bool(get_meta("landed", false)) and t >= weapon.contact_at:
+	if not bool(get_meta("landed", false)) and t >= _move.contact:
 		set_meta("landed", true)
 		var distance: float = _player_position().distance_to(global_position)
-		if distance <= weapon.reach and boat != null and boat.player != null:
-			boat.player.receive_hit(stats.attack_damage(bool(get_meta("heavy", false))), self)
+		if distance <= weapon.reach * _move.reach_scale and boat != null and boat.player != null:
+			var damage: float = (
+				stats.attack_damage(bool(get_meta("heavy", false))) * _move.damage_scale
+			)
+			boat.player.receive_hit(damage, self)
 
 	if t >= 1.0:
 		_swing_timer = 0.0
@@ -264,11 +280,45 @@ func _advance_swing(dt: float) -> void:
 		_rest_pose()
 
 
+## The arm and weapon curves for each technique. The first part of every one is the telegraph:
+## the blade goes somewhere visible before it comes back, which is what makes them readable and
+## therefore fair.
+func _pose(t: float) -> void:
+	# Windup runs to contact, follow-through after it.
+	var wind: float = clampf(t / maxf(_move.contact, 0.01), 0.0, 1.0)
+	var follow: float = clampf((t - _move.contact) / maxf(1.0 - _move.contact, 0.01), 0.0, 1.0)
+
+	match _move.shape:
+		CombatMove.Shape.KESA:
+			# Up over the shoulder, then down across the body.
+			_arm.rotation = Vector3(0.35 - wind * 2.5 + follow * 3.1, -wind * 0.5, -0.25 + follow * 0.9)
+			_weapon_pivot.rotation = Vector3(-0.5 - wind * 0.9 + follow * 2.6, 0.0, 0.0)
+		CombatMove.Shape.DO:
+			# Drawn back to the side, then swung flat through the waist.
+			_arm.rotation = Vector3(-0.5, -wind * 1.5 + follow * 2.8, -0.9)
+			_weapon_pivot.rotation = Vector3(-1.2, 0.0, -wind * 0.6 + follow * 1.1)
+		CombatMove.Shape.KIRIAGE:
+			# Dropped low, then whipped up from the opposite hip.
+			_arm.rotation = Vector3(0.35 + wind * 1.0 - follow * 2.6, wind * 0.4, -0.25 - follow * 0.5)
+			_weapon_pivot.rotation = Vector3(0.9 - follow * 2.4, 0.0, 0.0)
+		CombatMove.Shape.TSUKI:
+			# Cocked back beside the hip, then driven straight out.
+			var reach_out: float = -wind * 0.35 + follow * 1.0
+			_arm.rotation = Vector3(-1.1 - wind * 0.3 + follow * 0.5, 0.0, -0.2)
+			_arm.position = Vector3(0.22, 1.33, 0.0) + Vector3(0.0, 0.0, reach_out * 0.35)
+			_weapon_pivot.rotation = Vector3(-1.45, 0.0, 0.0)
+		_:
+			_arm.rotation = Vector3(0.35, -wind * 1.2 + follow * 2.2, -0.25)
+			_weapon_pivot.rotation = Vector3(-0.9, 0.0, 0.0)
+
+
+## Guard: weapon up and across, not hanging at his side.
 func _rest_pose() -> void:
 	if _arm == null:
 		return
-	_arm.rotation = Vector3(0.35, 0.0, -0.25)
-	_weapon_pivot.rotation = Vector3(-0.5, 0.0, 0.0)
+	_arm.rotation = Vector3(-0.35, -0.25, -0.5)
+	_arm.position = Vector3(0.22, 1.33, 0.0)
+	_weapon_pivot.rotation = Vector3(-0.9, 0.0, 0.0)
 
 
 ## Called by the player's swing.
@@ -298,8 +348,8 @@ func _sink(dt: float) -> void:
 func _update_hit_flash(dt: float) -> void:
 	if _hit_flash <= 0.0:
 		return
-	_hit_flash = maxf(0.0, _hit_flash - dt * 4.0)
-	var tint: Color = Color(1.0, 0.25, 0.2).srgb_to_linear() * _hit_flash * 0.8
+	_hit_flash = maxf(0.0, _hit_flash - dt * 6.0)
+	var tint: Color = Color(1.0, 0.25, 0.2).srgb_to_linear() * _hit_flash * 0.45
 	for key: String in [SamuraiBuilder.LACQUER, SamuraiBuilder.CLOTH, SamuraiBuilder.STEEL]:
 		(_materials[key] as StandardMaterial3D).emission_enabled = _hit_flash > 0.0
 		(_materials[key] as StandardMaterial3D).emission = tint

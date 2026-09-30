@@ -30,6 +30,10 @@ var stats: CharacterStats
 var _swing_timer: float = 0.0
 var _swing_heavy: bool = false
 var _swing_landed: bool = false
+## The boatman knows one thing and does it alternately: sweep left, sweep right, left again.
+## Which is why two attackers on opposite sides is genuinely awkward for him.
+var _move: CombatMove = CombatMove.sweep_right()
+var _next_side: float = 1.0
 var _mercy: float = 0.0
 var _down_timer: float = 0.0
 ## Enemies currently aboard, kept by the encounter director.
@@ -89,42 +93,52 @@ func _process(delta: float) -> void:
 	stats_changed.emit()
 
 
-## A heavy strike costs chi and does over twice the damage; a light one is free.
+## A heavy strike costs chi and does over twice the damage. It is not a better technique - it
+## is the same sweep with his weight behind it, which is all he has.
 func _start_swing(heavy: bool) -> void:
 	if heavy and not stats.spend_chi(stats.weapon().chi_cost):
 		notice.emit("Not enough 気")
 		return
+	_move = CombatMove.sweep_right() if _next_side > 0.0 else CombatMove.sweep_left()
+	_next_side = -_next_side
 	_swing_timer = 0.0001
 	_swing_heavy = heavy
 	_swing_landed = false
 
 
 func _advance_swing(dt: float) -> void:
-	var weapon: Weapon = stats.weapon()
 	_swing_timer += dt
-	var t: float = clampf(_swing_timer / weapon.swing_time, 0.0, 1.0)
-	# Drive the boatman's poling cycle hard through the swing so it reads as a strike.
+	var t: float = clampf(_swing_timer / _move.duration, 0.0, 1.0)
 	if boatman != null:
-		boatman.animate(PI * 0.5 + t * PI, 1.0)
+		boatman.strike(t, _move.side)
 
-	if not _swing_landed and t >= weapon.contact_at:
+	if not _swing_landed and t >= _move.contact:
 		_swing_landed = true
-		_strike(weapon)
+		_strike(stats.weapon())
 
 	if t >= 1.0:
 		_swing_timer = 0.0
 
 
-## Everything aboard within reach and roughly in front takes the hit.
+## A sweep only catches what is on the side it is travelling toward, plus whatever is straight
+## ahead. Two boarders on opposite sides therefore have to be dealt with in turn, which is the
+## whole tactical content of fighting with a punt pole.
 func _strike(weapon: Weapon) -> void:
-	var damage: float = stats.attack_damage(_swing_heavy)
+	var damage: float = stats.attack_damage(_swing_heavy) * _move.damage_scale
+	var reach: float = weapon.reach * _move.reach_scale
 	var hits: int = 0
 	for enemy: Samurai in enemies:
 		if not is_instance_valid(enemy) or not enemy.stats.is_alive():
 			continue
-		if enemy.global_position.distance_to(global_position) <= weapon.reach:
-			enemy.receive_hit(damage)
-			hits += 1
+		var to_enemy: Vector3 = enemy.global_position - global_position
+		if to_enemy.length() > reach:
+			continue
+		# Which side of him the target is on, in his own frame.
+		var lateral: float = global_transform.basis.x.dot(to_enemy.normalized())
+		if _move.side != 0.0 and lateral * _move.side < -0.3:
+			continue
+		enemy.receive_hit(damage)
+		hits += 1
 	if hits == 0 and _swing_heavy:
 		notice.emit("気 spent on air")
 

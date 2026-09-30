@@ -66,7 +66,11 @@ func animate(phase: float, activity: float) -> void:
 	head.rotation = Vector3(-upper.rotation.x * 0.75 + 0.05, 0.1, 0.0)
 	pole.position = POLE_PIVOT + Vector3(0.0, 0.04 * c * activity, 0.1 * s * activity)
 	pole.rotation = Vector3(a, 0.0, -0.08)
+	_solve_arms()
 
+
+## Plants both hands on the pole wherever it currently is.
+func _solve_arms() -> void:
 	for arm: Dictionary in _arms:
 		var side: float = arm["side"]
 		# Shoulder rides the torso, hand rides the pole - both in the boatman's own space.
@@ -92,6 +96,26 @@ func animate(phase: float, activity: float) -> void:
 		var hand: Node3D = arm["hand"]
 		hand.position = hand_point
 		hand.basis = (arm["lower"] as Node3D).basis
+
+
+## A staff sweep, left or right. `t` runs 0 to 1 over the move.
+##
+## This costs almost nothing to animate because the arms already solve to the pole: swing the
+## pole and twist the torso, and the hands follow on their own. Which is also why it looks like
+## a boatman fighting rather than a swordsman - he is using the punt pole the only way he knows,
+## flat and two-handed, with his whole body behind it.
+func strike(t: float, direction: float) -> void:
+	# Wind up against the swing, then carry through past the target.
+	var swing: float = -cos(clampf(t, 0.0, 1.0) * PI) # -1 at the start, +1 at the end
+	var yaw: float = direction * swing * 1.15
+	var lean: float = sin(clampf(t, 0.0, 1.0) * PI)
+
+	upper.rotation = Vector3(0.1 + lean * 0.18, -0.12 + yaw * 0.55, direction * lean * 0.12)
+	head.rotation = Vector3(-upper.rotation.x * 0.6 + 0.05, yaw * 0.25, 0.0)
+	pole.position = POLE_PIVOT + Vector3(-direction * lean * 0.12, 0.22 * lean, 0.18 * lean)
+	# Held flat and level, so it sweeps across the deck rather than chopping.
+	pole.rotation = Vector3(1.45, yaw * 1.5, -0.08 + direction * 0.25)
+	_solve_arms()
 
 
 ## solveArm() - two-bone IK. Returns the elbow; the clamped hand lands in _solved_hand.

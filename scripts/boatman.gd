@@ -118,6 +118,22 @@ func strike(t: float, direction: float) -> void:
 	_solve_arms()
 
 
+## Guard: the pole brought up level and held across the chest with both hands.
+##
+## A boatman has no idea how to parry, but he does know how to hold a heavy pole steady, and
+## with the arms already solving to its grips it is the most natural defensive shape the rig
+## can make. `held` is how long the guard has been up, which lets a fresh raise snap into
+## place and a held one settle.
+func guard(held: float) -> void:
+	var settle: float = clampf(held * 6.0, 0.0, 1.0)
+	upper.rotation = Vector3(0.22, -0.34, 0.0)
+	head.rotation = Vector3(-0.12, 0.28, 0.0)
+	pole.position = POLE_PIVOT + Vector3(-0.16, 0.30 - settle * 0.03, 0.24)
+	# Level and across, rather than the raked poling angle.
+	pole.rotation = Vector3(1.52, 1.15, -0.05)
+	_solve_arms()
+
+
 ## solveArm() - two-bone IK. Returns the elbow; the clamped hand lands in _solved_hand.
 func _solve_arm(from: Vector3, to: Vector3, hint: Vector3) -> Vector3:
 	var delta: Vector3 = to - from

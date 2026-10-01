@@ -106,7 +106,7 @@ grow_vertical = 0
 
 [node name="Text" type="Label" parent="Hint"]
 layout_mode = 2
-text = "W/S pole, A/D steer  |  Left click strike, Shift for 気, Q swap weapon  |  Right-drag to look, scroll to zoom"
+text = "W/S pole, A/D steer  |  Left click strike, hold Right click to guard, Shift for 気, Q swap  |  Middle-drag to look"
 
 [node name="Title" type="ColorRect" parent="."]
 anchors_preset = 15

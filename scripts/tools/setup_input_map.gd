@@ -10,6 +10,7 @@ extends SceneTree
 ## Mouse buttons are listed separately from keys.
 const MOUSE_ACTIONS: Dictionary = {
 	"ukiyo_attack": [MOUSE_BUTTON_LEFT],
+	"ukiyo_block": [MOUSE_BUTTON_RIGHT],
 }
 
 const ACTIONS: Dictionary = {
@@ -22,6 +23,12 @@ const ACTIONS: Dictionary = {
 	"ukiyo_attack": [KEY_SPACE],
 	"ukiyo_chi": [KEY_SHIFT],
 	"ukiyo_swap": [KEY_Q],
+	# Guard is held. Right click is the natural pair to a left-click strike, so looking around
+	# moved to a middle-mouse drag.
+	"ukiyo_block": [KEY_F],
+	# Reserved. Nobody knows the weave yet - it is the action the player picks up ashore.
+	"ukiyo_evade_left": [KEY_Z],
+	"ukiyo_evade_right": [KEY_C],
 }
 
 

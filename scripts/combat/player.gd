@@ -15,6 +15,15 @@ const START_CHI: float = 60.0
 ## Seconds of invulnerability after being struck, so a crowd cannot stunlock you.
 const MERCY: float = 0.7
 
+## What a raised guard leaves you taking.
+const BLOCK_SOAK: float = 0.25
+## Chi burned per point of damage stopped. Hold against enough and the guard breaks.
+const BLOCK_CHI_PER_DAMAGE: float = 0.55
+## Raise the guard within this long before a blow lands and it is turned aside completely.
+const PARRY_WINDOW: float = 0.28
+## How long a broken guard leaves you open.
+const GUARD_BREAK: float = 1.1
+
 ## Seconds spent down before the river carries you on.
 const RECOVERY_SECONDS: float = 3.5
 
@@ -32,10 +41,15 @@ var _swing_heavy: bool = false
 var _swing_landed: bool = false
 ## The boatman knows one thing and does it alternately: sweep left, sweep right, left again.
 ## Which is why two attackers on opposite sides is genuinely awkward for him.
-var _move: CombatMove = CombatMove.sweep_right()
+var _move: CombatAction = CombatAction.sweep_right()
 var _next_side: float = 1.0
 var _mercy: float = 0.0
 var _down_timer: float = 0.0
+## Guard state. `guarding` is the held input; the timer is how long it has been up, which is
+## what makes a late raise a parry rather than a block.
+var guarding: bool = false
+var _guard_held: float = 0.0
+var _guard_break: float = 0.0
 ## Enemies currently aboard, kept by the encounter director.
 var enemies: Array[Samurai] = []
 
@@ -44,6 +58,8 @@ func _ready() -> void:
 	position = CHEST
 	stats = CharacterStats.make(1, START_HEALTH, START_CHI, [Weapon.bo()])
 	stats.chi_regen = 6.0
+	# He starts knowing two sweeps and how to get the pole in the way. That is all.
+	stats.actions = [CombatAction.sweep_left(), CombatAction.sweep_right(), CombatAction.block()]
 	stats.died.connect(_on_died)
 	stats.levelled_up.connect(
 		func(new_level: int) -> void: notice.emit("Level %d" % new_level)
@@ -78,9 +94,15 @@ func _process(delta: float) -> void:
 
 	stats.regenerate(dt)
 	_mercy = maxf(0.0, _mercy - dt)
+	_guard_break = maxf(0.0, _guard_break - dt)
+	_update_guard(dt)
 
 	if _swing_timer > 0.0:
 		_advance_swing(dt)
+	elif guarding:
+		# Guarding and striking are separate decisions; you cannot do both.
+		if boatman != null:
+			boatman.guard(_guard_held)
 	elif Input.is_action_just_pressed("ukiyo_attack"):
 		_start_swing(false)
 	elif Input.is_action_just_pressed("ukiyo_chi"):
@@ -99,7 +121,7 @@ func _start_swing(heavy: bool) -> void:
 	if heavy and not stats.spend_chi(stats.weapon().chi_cost):
 		notice.emit("Not enough 気")
 		return
-	_move = CombatMove.sweep_right() if _next_side > 0.0 else CombatMove.sweep_left()
+	_move = CombatAction.sweep_right() if _next_side > 0.0 else CombatAction.sweep_left()
 	_next_side = -_next_side
 	_swing_timer = 0.0001
 	_swing_heavy = heavy
@@ -143,16 +165,58 @@ func _strike(weapon: Weapon) -> void:
 		notice.emit("気 spent on air")
 
 
-## True while a strike is playing, so the boat's poling animation stands aside for it.
+## True while a strike or a guard is playing, so the boat's poling animation stands aside.
 func is_swinging() -> bool:
-	return _swing_timer > 0.0
+	return _swing_timer > 0.0 or guarding
 
 
-func receive_hit(amount: float, _from: Samurai) -> void:
+## Guard is held, not triggered. A broken one cannot be raised again until it recovers.
+func _update_guard(delta: float) -> void:
+	var wanted: bool = (
+		Input.is_action_pressed("ukiyo_block")
+		and _guard_break <= 0.0
+		and stats.can(CombatAction.Kind.GUARD)
+		and _swing_timer <= 0.0
+	)
+	if wanted and not guarding:
+		_guard_held = 0.0
+	guarding = wanted
+	if guarding:
+		_guard_held += delta
+
+
+## What a raised guard does to an incoming blow.
+##
+## Raising it late - inside PARRY_WINDOW of the blow landing - turns the strike aside for
+## nothing, which is the reward for reading the telegraph. Holding it up from well before costs
+## chi proportional to what it stopped, and runs out.
+func _resolve_guard(amount: float) -> float:
+	if not guarding:
+		return amount
+	if _guard_held <= PARRY_WINDOW:
+		stats.chi = minf(stats.max_chi, stats.chi + amount * 0.25)
+		notice.emit("Turned aside")
+		return 0.0
+	if not stats.spend_chi(amount * BLOCK_CHI_PER_DAMAGE):
+		stats.chi = 0.0
+		guarding = false
+		_guard_break = GUARD_BREAK
+		notice.emit("Guard broken")
+		return amount
+	return amount * BLOCK_SOAK
+
+
+func receive_hit(amount: float, _from: Samurai, _action: CombatAction = null) -> void:
 	if _mercy > 0.0 or not stats.is_alive():
 		return
+	var taken: float = _resolve_guard(amount)
+	# A blow turned aside completely does not start the mercy window, so a good guard can be
+	# held through a flurry rather than buying a free second.
+	if taken <= 0.0:
+		stats_changed.emit()
+		return
 	_mercy = MERCY
-	stats.take_damage(amount)
+	stats.take_damage(taken)
 	stats_changed.emit()
 
 

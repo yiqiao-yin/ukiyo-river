@@ -40,8 +40,12 @@ var boat: Boat
 var skiff: Node3D
 
 ## The technique he is in the middle of. Picked fresh each time, so he does not repeat himself.
-var _move: CombatMove
-var _moves: Array[CombatMove] = []
+## True while his guard is up. Only the trained ones have one at all.
+var guarding: bool = false
+var _guard_timer: float = 0.0
+
+var _move: CombatAction
+var _moves: Array[CombatAction] = []
 var _last_move: int = -1
 
 var _swing_timer: float = 0.0
@@ -68,6 +72,10 @@ static func spawn(
 	s.stats = CharacterStats.make(
 		level, float(profile["health"]), float(profile["chi"]), [_weapon_for(enemy_kind)]
 	)
+	s.stats.actions = s.stats.attacks()
+	# Only the trained ones cover themselves. A conscript with a spear does not.
+	if enemy_kind == SamuraiBuilder.Kind.SAMURAI or enemy_kind == SamuraiBuilder.Kind.SOHEI:
+		s.stats.actions.append(CombatAction.block())
 	return s
 
 
@@ -136,7 +144,7 @@ func _ready() -> void:
 	off.material_override = _materials[SamuraiBuilder.CLOTH]
 	add_child(off)
 
-	_moves = CombatMove.for_weapon(stats.weapon().display_name)
+	_moves = stats.attacks()
 	_move = _moves[0]
 
 	stats.died.connect(_on_died)
@@ -232,8 +240,11 @@ func _fight(dt: float) -> void:
 
 	if _recovery_timer > 0.0:
 		_recovery_timer -= dt
-		_rest_pose()
+		_update_guard(dt, distance)
+		if not guarding:
+			_rest_pose()
 		return
+	_drop_guard()
 
 	if distance > reach - PREFERRED_GAP:
 		# Step in, staying on the deck.
@@ -261,6 +272,7 @@ func _start_swing() -> void:
 
 func _advance_swing(dt: float) -> void:
 	var weapon: Weapon = stats.weapon()
+	guarding = false
 	_swing_timer += dt
 	var t: float = clampf(_swing_timer / _move.duration, 0.0, 1.0)
 	_pose(t)
@@ -272,7 +284,7 @@ func _advance_swing(dt: float) -> void:
 			var damage: float = (
 				stats.attack_damage(bool(get_meta("heavy", false))) * _move.damage_scale
 			)
-			boat.player.receive_hit(damage, self)
+			boat.player.receive_hit(damage, self, _move)
 
 	if t >= 1.0:
 		_swing_timer = 0.0
@@ -289,19 +301,19 @@ func _pose(t: float) -> void:
 	var follow: float = clampf((t - _move.contact) / maxf(1.0 - _move.contact, 0.01), 0.0, 1.0)
 
 	match _move.shape:
-		CombatMove.Shape.KESA:
+		CombatAction.Shape.KESA:
 			# Up over the shoulder, then down across the body.
 			_arm.rotation = Vector3(0.35 - wind * 2.5 + follow * 3.1, -wind * 0.5, -0.25 + follow * 0.9)
 			_weapon_pivot.rotation = Vector3(-0.5 - wind * 0.9 + follow * 2.6, 0.0, 0.0)
-		CombatMove.Shape.DO:
+		CombatAction.Shape.DO:
 			# Drawn back to the side, then swung flat through the waist.
 			_arm.rotation = Vector3(-0.5, -wind * 1.5 + follow * 2.8, -0.9)
 			_weapon_pivot.rotation = Vector3(-1.2, 0.0, -wind * 0.6 + follow * 1.1)
-		CombatMove.Shape.KIRIAGE:
+		CombatAction.Shape.KIRIAGE:
 			# Dropped low, then whipped up from the opposite hip.
 			_arm.rotation = Vector3(0.35 + wind * 1.0 - follow * 2.6, wind * 0.4, -0.25 - follow * 0.5)
 			_weapon_pivot.rotation = Vector3(0.9 - follow * 2.4, 0.0, 0.0)
-		CombatMove.Shape.TSUKI:
+		CombatAction.Shape.TSUKI:
 			# Cocked back beside the hip, then driven straight out.
 			var reach_out: float = -wind * 0.35 + follow * 1.0
 			_arm.rotation = Vector3(-1.1 - wind * 0.3 + follow * 0.5, 0.0, -0.2)
@@ -321,11 +333,46 @@ func _rest_pose() -> void:
 	_weapon_pivot.rotation = Vector3(-0.9, 0.0, 0.0)
 
 
-## Called by the player's swing.
+## A trained fighter covers himself between techniques rather than standing open. Whether he
+## does is a coin weighted by how much chi he has, so a worn-down samurai drops his guard.
+func _update_guard(dt: float, distance: float) -> void:
+	if not stats.can(CombatAction.Kind.GUARD):
+		return
+	_guard_timer -= dt
+	if _guard_timer <= 0.0:
+		_guard_timer = 0.5
+		var close: bool = distance <= stats.weapon().reach * 1.4
+		guarding = close and stats.chi > stats.max_chi * 0.25 and randf() < 0.55
+	if guarding:
+		_guard_pose()
+
+
+func _drop_guard() -> void:
+	guarding = false
+
+
+## Weapon up and across, taking the blow on the shaft.
+func _guard_pose() -> void:
+	if _arm == null:
+		return
+	_arm.rotation = Vector3(-1.15, -0.1, -0.95)
+	_arm.position = Vector3(0.22, 1.33, 0.0)
+	_weapon_pivot.rotation = Vector3(-1.5, 0.0, 0.4)
+
+
+## Called by the player's swing. A raised guard soaks most of it and costs chi to hold.
 func receive_hit(amount: float) -> void:
 	if state == State.DEFEATED:
 		return
-	stats.take_damage(amount)
+	var taken: float = amount
+	if guarding:
+		taken = amount * 0.3
+		# Holding against a blow is tiring; run out and the guard drops.
+		if not stats.spend_chi(amount * 0.5):
+			stats.chi = 0.0
+			guarding = false
+			taken = amount
+	stats.take_damage(taken)
 	_hit_flash = 1.0
 
 

@@ -61,8 +61,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
 		match button.button_index:
-			MOUSE_BUTTON_RIGHT:
-				# Left click is the attack, so looking around moved to the right button.
+			MOUSE_BUTTON_MIDDLE:
+				# Left click strikes and right click guards, so looking around is the
+				# middle button.
 				_dragging = button.pressed
 			MOUSE_BUTTON_WHEEL_UP:
 				if button.pressed:

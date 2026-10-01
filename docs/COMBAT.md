@@ -2,6 +2,31 @@
 
 The first step past the port: samurai board the boat and try to kill you.
 
+## Actions
+
+Everything a character can do is a `CombatAction`, and a character carries the list of the
+ones it knows. That is the whole point of the type: adding a technique means writing a
+constructor and granting it, not touching the combat loop.
+
+There are three kinds:
+
+- **Attack** - costs time, lands damage at a fixed point in its swing.
+- **Guard** - held rather than triggered. Soaks damage while up.
+- **Evade** - a single hard step out of the line. *Defined and granted to nobody.* This is the
+  next action to hand out, and the plan is for it to arrive when the player first gets ashore,
+  on its own key, so guarding and evading stay separate decisions.
+
+Who knows what:
+
+| | attacks | guard | evade |
+| --- | --- | --- | --- |
+| Player (boatman) | two sweeps | yes, from the start | not yet |
+| Ashigaru, Ronin | from their weapon | no - conscripts and drifters | not yet |
+| Samurai, Sohei | from their weapon | yes | not yet |
+
+Attacks come from whatever is in hand, so picking up a katana picks up its three techniques.
+Everything else is granted explicitly.
+
 ## Characters
 
 Everyone on screen - the player and every enemy - is a `CharacterStats`: a level, health,
@@ -72,6 +97,31 @@ Every technique spends its first half winding up somewhere visible before the bl
 back. That telegraph is what makes them fair - you can see a kesa cut coming, and it is the
 only warning you get.
 
+## Guarding
+
+Hold **right click**. The boatman brings the pole up level and across his chest - he has no
+idea how to parry, but he does know how to hold a heavy pole steady, and with his hands already
+solving to its grips it is the most natural defensive shape his rig can make.
+
+What happens to an incoming blow depends on *when* the guard went up:
+
+| | effect | cost |
+| --- | --- | --- |
+| Raised within 0.28 s of the blow landing | **turned aside completely** | none - refunds a little 気 |
+| Held up from earlier | 25 % gets through | 0.55 気 per point stopped |
+| Held with no 気 left | **guard breaks**, full damage, open for 1.1 s | - |
+
+That first row is the reason the telegraphs exist. Every enemy technique spends its first half
+winding up somewhere visible; reading one and raising the pole into it costs nothing and gives
+back 気. Holding the guard up permanently does not work - it drains, and a broken guard is
+worse than no guard.
+
+A blow turned aside completely does not start the mercy window either, so a well-timed guard
+can be held through a flurry instead of buying one free second.
+
+You cannot strike and guard at once, and the trained enemies - samurai and sohei - cover
+themselves between techniques on the same terms, so they are not simply free to hit.
+
 ## How an attack happens
 
 1. Past **z = -150** - a couple of minutes downstream - skiffs start appearing astern.
@@ -92,10 +142,16 @@ from one Ashigaru near the start to three of the worst by the far end, capped at
 | | |
 | --- | --- |
 | Left click, or Space | strike |
+| **Right click (hold), or F** | **guard** |
 | Shift | heavy strike, costs 気 |
 | Q | swap weapon |
-| Right-drag | look around (moved off the left button to make room for the strike) |
+| Middle-drag | look around |
 | W/S, A/D | pole and steer, as before |
+| Z / C | *reserved for the weave, once it is granted ashore* |
+
+Looking around has moved twice as combat has arrived: off the left button to make room for the
+strike, then off the right to make room for the guard. Left to strike and right to guard is
+the pairing worth protecting; the camera follows the boat on its own anyway.
 
 ## Known rough edges
 
@@ -103,10 +159,12 @@ This was built as a rough first pass, deliberately.
 
 - **Balance is a first guess.** The numbers above are tuned by arithmetic, not by playing.
   Arriving at the far end under-levelled is a beating. Every constant is at the top of its file.
-- **No blocking or dodging.** Steering is the only defence, and only before they board, and
-  there is no way yet to answer a telegraph other than by hitting first.
+- **No evade yet.** Guarding is the only answer to a telegraph. The weave is written and waiting
+  to be granted.
 - **The player's two sweeps are the same move mirrored.** Deliberate for now - he is a boatman -
   but it is where new techniques should go as he levels.
+- **Enemies guard on a weighted coin flip**, not by reading the player. They do not yet notice
+  a swing coming and raise against it.
 - **Hits are distance checks**, not hitboxes - anything within reach of the swing is hit,
   regardless of facing.
 - **Abandoned skiffs sit where they were left** rather than drifting away.

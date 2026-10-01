@@ -24,6 +24,10 @@ var chi_regen: float = 5.0
 var inventory: Array[Weapon] = []
 var equipped_index: int = 0
 
+## What this character knows how to do. Attacks come from the weapon; everything else is
+## granted explicitly, so a character can be given a guard without being given a weave.
+var actions: Array[CombatAction] = []
+
 signal died
 signal levelled_up(new_level: int)
 signal damaged(amount: float)
@@ -38,6 +42,19 @@ static func make(level_value: int, base_health: float, base_chi: float, weapons:
 	s.chi = s.max_chi
 	s.inventory = weapons
 	return s
+
+
+## Whether this character knows any action of the given kind.
+func can(kind: CombatAction.Kind) -> bool:
+	for action: CombatAction in actions:
+		if action.kind == kind:
+			return true
+	return false
+
+
+## Attacks come from whatever is in hand, so they are looked up rather than stored.
+func attacks() -> Array[CombatAction]:
+	return CombatAction.attacks_for_weapon(weapon().display_name)
 
 
 func weapon() -> Weapon:

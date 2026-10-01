@@ -95,6 +95,13 @@ func _draw_player_panel() -> void:
 	draw_string(_font, Vector2(x + 22.0, panel.position.y + 74.0),
 		"%d" % roundi(stats.chi), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.05, 0.1, 0.1))
 
+	# Guard. The chi bar is the thing under pressure while it is up, so the tell sits on it.
+	if player.guarding:
+		draw_rect(Rect2(x - 2.0, panel.position.y + 62.0, 264.0, 16.0), Color("#c8a33c"), false, 2.0)
+		if _kanji_font != null:
+			draw_string(_kanji_font, Vector2(panel.end.x - 46.0, panel.position.y + 76.0),
+				"受け", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("#c8a33c"))
+
 	# Experience toward the next level.
 	var progress: float = float(stats.experience) / float(maxi(stats.next_level_at(), 1))
 	_bar(Rect2(x, panel.position.y + 84.0, 260.0, 5.0), progress, Color("#c8a33c"))

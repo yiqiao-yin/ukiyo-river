@@ -1,9 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui.gd" id="1_ui"]
 [ext_resource type="Script" path="res://scripts/combat/combat_hud.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/menu.gd" id="3_menu"]
 
-[node name="UI" type="CanvasLayer" node_paths=PackedStringArray("weather_button", "time_button", "view_button", "drift_button", "sound_button", "bar", "mark", "hint", "title", "cast_button", "combat_hud")]
+[node name="UI" type="CanvasLayer" node_paths=PackedStringArray("weather_button", "time_button", "view_button", "drift_button", "sound_button", "bar", "mark", "hint", "title", "menu", "combat_hud")]
 script = ExtResource("1_ui")
 weather_button = NodePath("Bar/Weather")
 time_button = NodePath("Bar/Time")
@@ -14,7 +15,7 @@ bar = NodePath("Bar")
 mark = NodePath("Mark")
 hint = NodePath("Hint")
 title = NodePath("Title")
-cast_button = NodePath("Title/Card/CastRow/Cast")
+menu = NodePath("Title")
 combat_hud = NodePath("CombatHUD")
 
 [node name="CombatHUD" type="Control" parent="."]
@@ -108,13 +109,21 @@ grow_vertical = 0
 layout_mode = 2
 text = "W/S pole, A/D steer  |  Left click strike, hold Right click to guard, Shift for 気, Q swap  |  Middle-drag to look"
 
-[node name="Title" type="ColorRect" parent="."]
+[node name="Title" type="ColorRect" parent="." node_paths=PackedStringArray("home_panel", "profile_panel", "settings_panel", "begin_button", "profile_button", "settings_button", "quit_button")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.031, 0.039, 0.055, 0.66)
+color = Color(0.031, 0.039, 0.055, 0.78)
+script = ExtResource("3_menu")
+home_panel = NodePath("Card/Home")
+profile_panel = NodePath("Card/Profile")
+settings_panel = NodePath("Card/Settings")
+begin_button = NodePath("Card/Home/Buttons/Begin")
+profile_button = NodePath("Card/Home/Buttons/Profile")
+settings_button = NodePath("Card/Home/Buttons/Settings")
+quit_button = NodePath("Card/Home/Buttons/Quit")
 
 [node name="Card" type="VBoxContainer" parent="Title"]
 anchors_preset = 8
@@ -122,18 +131,18 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -280.0
-offset_top = -300.0
-offset_right = 280.0
-offset_bottom = 300.0
+offset_left = -300.0
+offset_top = -330.0
+offset_right = 300.0
+offset_bottom = 330.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 alignment = 1
 
 [node name="Kanji" type="VBoxContainer" parent="Title/Card"]
 layout_mode = 2
-theme_override_constants/separation = -14
+theme_override_constants/separation = -20
 alignment = 1
 
 [node name="Char0" type="Label" parent="Title/Card/Kanji"]
@@ -157,24 +166,61 @@ text = "A rainy night on the river of the floating world"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Blurb" type="Label" parent="Title/Card"]
+[node name="Home" type="VBoxContainer" parent="Title/Card"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Blurb" type="Label" parent="Title/Card/Home"]
 custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
 text = "Pole a covered boat past torii gates, a five storey pagoda, arched bridges and lantern lit villages while a storm rolls over the mountains."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="CastRow" type="HBoxContainer" parent="Title/Card"]
+[node name="Buttons" type="VBoxContainer" parent="Title/Card/Home"]
 layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 7
 alignment = 1
 
-[node name="Cast" type="Button" parent="Title/Card/CastRow"]
+[node name="Begin" type="Button" parent="Title/Card/Home/Buttons"]
+custom_minimum_size = Vector2(220, 46)
 layout_mode = 2
 text = "Cast off"
 
-[node name="Footnote" type="Label" parent="Title/Card"]
+[node name="Profile" type="Button" parent="Title/Card/Home/Buttons"]
+custom_minimum_size = Vector2(220, 38)
+layout_mode = 2
+text = "Profile"
+
+[node name="Settings" type="Button" parent="Title/Card/Home/Buttons"]
+custom_minimum_size = Vector2(220, 38)
+layout_mode = 2
+text = "Settings"
+
+[node name="Quit" type="Button" parent="Title/Card/Home/Buttons"]
+custom_minimum_size = Vector2(220, 38)
+layout_mode = 2
+text = "Quit"
+
+[node name="Footnote" type="Label" parent="Title/Card/Home"]
 custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
-text = "Best with sound. Drag anywhere to look around."
+text = "Best with sound. Escape brings this back while you are on the water."
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="Profile" type="VBoxContainer" parent="Title/Card"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Settings" type="VBoxContainer" parent="Title/Card"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 10
+alignment = 1

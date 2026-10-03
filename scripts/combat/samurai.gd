@@ -8,10 +8,14 @@ extends Node3D
 
 enum State { ROWING, BOARDING, FIGHTING, DEFEATED }
 
-## How close the skiff gets before he steps across.
-const BOARD_RANGE: float = 3.2
+## How close the skiff gets before he steps across. He comes right alongside, close enough to
+## step rather than leap.
+const BOARD_RANGE: float = 1.5
 ## How long the step across takes.
-const BOARD_SECONDS: float = 0.9
+const BOARD_SECONDS: float = 0.55
+## He holds station alongside for this long before committing, so the boats are matched and
+## settled rather than one ramming the other.
+const SETTLE_SECONDS: float = 0.45
 ## He backs off to here between swings rather than standing inside the player.
 const PREFERRED_GAP: float = 0.75
 const MOVE_SPEED: float = 1.4
@@ -30,6 +34,8 @@ const PROFILES: Dictionary = {
 }
 
 signal defeated(samurai: Samurai)
+## Emitted whenever he is struck, so the HUD can put a number over him.
+signal struck(amount: float, blocked: bool)
 
 var kind: SamuraiBuilder.Kind = SamuraiBuilder.Kind.ASHIGARU
 var stats: CharacterStats
@@ -51,6 +57,7 @@ var _last_move: int = -1
 var _swing_timer: float = 0.0
 var _recovery_timer: float = 0.0
 var _board_timer: float = 0.0
+var _settle_timer: float = 0.0
 var _board_from: Vector3 = Vector3.ZERO
 var _death_timer: float = 0.0
 var _arm: Node3D
@@ -100,6 +107,10 @@ func experience_value() -> int:
 
 
 func _ready() -> void:
+	# After the boat (priority 10). Default priority runs before it, so the skiff would be
+	# chasing last frame's position - and that one-frame lag exactly cancelled the closing step
+	# at about 1.9 m, leaving it hovering alongside and never boarding.
+	process_priority = 14
 	_materials = SamuraiBuilder.materials(kind)
 	var body: Dictionary = SamuraiBuilder.build(kind)
 	for key: String in body:
@@ -169,30 +180,57 @@ func _process(delta: float) -> void:
 			_sink(dt)
 
 
-## The skiff closes on the player's boat from behind and to one side.
+## The skiff closes on the player's boat, pulls in alongside, matches it, and holds there.
+##
+## The approach eases off as it gets close rather than running at full speed into contact, so
+## the two hulls end up travelling together with a gap he can step over.
 func _row(dt: float) -> void:
 	if skiff == null:
 		_begin_boarding()
 		return
-	var target: Vector3 = boat.global_transform * Vector3(
-		signf(_deck_slot.x) * 2.6, 0.0, _deck_slot.z - 0.5
+	# Closing happens in the boat's heading frame, flat on the water.
+	#
+	# Two earlier attempts failed here. Chasing a world point let the easing drop the skiff
+	# below the boat's own speed, so it could never catch up. Using the boat's full transform
+	# then fed its pitch and roll back into the horizontal every frame, and the approach
+	# settled at a standoff of 1.8 m instead of closing. Heading only, with height handled
+	# separately, is immune to both.
+	var forward := Vector3(sin(boat.heading), 0.0, cos(boat.heading))
+	var right := Vector3(cos(boat.heading), 0.0, -sin(boat.heading))
+	var offset: Vector3 = skiff.global_position - boat.global_position
+	var along: float = offset.dot(forward)
+	var across: float = offset.dot(right)
+
+	# Alongside the gunwale on the side he will board from, with a gap left to step over.
+	var want_across: float = signf(_deck_slot.x) * 1.75
+	var want_along: float = _deck_slot.z
+	var distance: float = Vector2(want_across - across, want_along - along).length()
+	if distance > 0.02:
+		# He has to out-row the boat before any of this closes at all: a rate that merely
+		# eases toward the target cannot beat a target moving at 4 m/s, and the skiff just
+		# hovers alongside forever. So the boat's own speed is the floor, and the closing
+		# rate is what he makes on top of it.
+		var pursue: float = absf(boat.speed) + Boat.FLOW
+		var step: float = minf((pursue + clampf(distance * 2.0, 0.8, 4.0)) * dt, distance)
+		across += (want_across - across) / distance * step
+		along += (want_along - along) / distance * step
+
+	var flat: Vector3 = boat.global_position + right * across + forward * along
+	skiff.global_position = Vector3(
+		flat.x, UkiyoMath.wave_h(flat.x, flat.z, _now(), _wind()), flat.z
 	)
-	var to_target: Vector3 = target - skiff.global_position
-	to_target.y = 0.0
-	var distance: float = to_target.length()
-	# Chase a little faster than the player can run, or he could never be caught.
-	var speed: float = 8.6
-	if distance > 0.05:
-		skiff.global_position += to_target / distance * minf(speed * dt, distance)
-	skiff.rotation.y = lerp_angle(skiff.rotation.y, boat.heading, 1.0 - exp(-dt * 2.0))
-	skiff.position.y = UkiyoMath.wave_h(
-		skiff.position.x, skiff.position.z, _now(), _wind()
-	)
+	# Line up parallel before stepping across.
+	skiff.rotation.y = lerp_angle(skiff.rotation.y, boat.heading, 1.0 - exp(-dt * 3.5))
 	global_position = skiff.global_position + Vector3(0.0, 0.12, 0.0)
-	rotation.y = skiff.rotation.y
+	rotation.y = lerp_angle(rotation.y, boat.heading + PI, 1.0 - exp(-dt * 3.0))
 
 	if distance < BOARD_RANGE:
-		_begin_boarding()
+		# Matched and settled before he commits.
+		_settle_timer += dt
+		if _settle_timer >= SETTLE_SECONDS:
+			_begin_boarding()
+	else:
+		_settle_timer = 0.0
 
 
 func _begin_boarding() -> void:
@@ -206,9 +244,11 @@ func _board(dt: float) -> void:
 	_board_timer += dt
 	var t: float = clampf(_board_timer / BOARD_SECONDS, 0.0, 1.0)
 	var landing: Vector3 = boat.global_transform * _deck_slot
-	var position_now: Vector3 = _board_from.lerp(landing, t)
-	# Lift through the middle of the step so he clears the gunwale.
-	position_now.y += sin(t * PI) * 0.55
+	# Ease out of the step so he settles onto the deck rather than snapping to it.
+	var eased: float = 1.0 - pow(1.0 - t, 2.0)
+	var position_now: Vector3 = _board_from.lerp(landing, eased)
+	# Just enough lift to clear the gunwale - it is a step across, not a jump.
+	position_now.y += sin(t * PI) * 0.3
 	global_position = position_now
 	rotation.y = boat.heading + PI
 	if t >= 1.0:
@@ -373,6 +413,7 @@ func receive_hit(amount: float) -> void:
 			guarding = false
 			taken = amount
 	stats.take_damage(taken)
+	struck.emit(taken, guarding)
 	_hit_flash = 1.0
 
 

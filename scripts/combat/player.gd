@@ -31,6 +31,10 @@ signal stats_changed
 signal died
 signal recovered
 signal notice(text: String)
+## For the HUD: a blow landed on an enemy at this point in the world.
+signal dealt(world_position: Vector3, amount: float, blocked: bool)
+## For the HUD: a blow landed on you. `blocked` 0 took it, 1 guarded it, 2 turned it aside.
+signal taken(amount: float, outcome: int)
 
 var stats: CharacterStats
 @export var boat: Boat
@@ -159,7 +163,16 @@ func _strike(weapon: Weapon) -> void:
 		var lateral: float = global_transform.basis.x.dot(to_enemy.normalized())
 		if _move.side != 0.0 and lateral * _move.side < -0.3:
 			continue
+		var before: float = enemy.stats.health
 		enemy.receive_hit(damage)
+		var dealt_amount: float = before - enemy.stats.health
+		dealt.emit(enemy.global_position + Vector3(0.0, 1.7, 0.0), dealt_amount, enemy.guarding)
+		if enemy.guarding:
+			SparkBurst.fire(
+				get_tree().current_scene,
+				enemy.global_position.lerp(global_position, 0.35) + Vector3(0.0, 1.2, 0.0),
+				false
+			)
 		hits += 1
 	if hits == 0 and _swing_heavy:
 		notice.emit("気 spent on air")
@@ -196,6 +209,7 @@ func _resolve_guard(amount: float) -> float:
 	if _guard_held <= PARRY_WINDOW:
 		stats.chi = minf(stats.max_chi, stats.chi + amount * 0.25)
 		notice.emit("Turned aside")
+		_spark(true)
 		return 0.0
 	if not stats.spend_chi(amount * BLOCK_CHI_PER_DAMAGE):
 		stats.chi = 0.0
@@ -203,20 +217,34 @@ func _resolve_guard(amount: float) -> float:
 		_guard_break = GUARD_BREAK
 		notice.emit("Guard broken")
 		return amount
+	_spark(false)
 	return amount * BLOCK_SOAK
+
+
+## Where the guard meets the blow - about chest height, out in front of him.
+func _spark(parry: bool) -> void:
+	SparkBurst.fire(
+		get_tree().current_scene,
+		global_position + global_transform.basis.z * 0.75 + Vector3(0.0, 0.25, 0.0),
+		parry
+	)
 
 
 func receive_hit(amount: float, _from: Samurai, _action: CombatAction = null) -> void:
 	if _mercy > 0.0 or not stats.is_alive():
 		return
-	var taken: float = _resolve_guard(amount)
+	var was_guarding: bool = guarding
+	var parried: bool = was_guarding and _guard_held <= PARRY_WINDOW
+	var got: float = _resolve_guard(amount)
 	# A blow turned aside completely does not start the mercy window, so a good guard can be
 	# held through a flurry rather than buying a free second.
-	if taken <= 0.0:
+	if got <= 0.0:
+		taken.emit(0.0, 2 if parried else 1)
 		stats_changed.emit()
 		return
 	_mercy = MERCY
-	stats.take_damage(taken)
+	stats.take_damage(got)
+	taken.emit(got, 1 if was_guarding else 0)
 	stats_changed.emit()
 
 

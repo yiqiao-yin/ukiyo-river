@@ -19,6 +19,19 @@ godot --headless --path 'C:\Dev\ukiyo-river' --export-release "Windows Desktop" 
 
 `build/` is gitignored - the binary is too big to keep in the repo.
 
+## The menu
+
+The game opens on the title with **Cast off**, **Profile**, **Settings** and **Quit**, and the
+tree is paused behind it. **Escape** brings it back while you are on the water, and pauses
+again; Escape inside Profile or Settings backs out to the menu first.
+
+- **Profile** - your name, level, experience, health, 気, what you are carrying and what you
+  know how to do, read live off the character.
+- **Settings** - volume, look sensitivity, sound, fullscreen, and the starting weather and time.
+
+**None of it is saved.** There is no database yet, so settings apply live and a profile is
+whatever you set this run. Close the exe and it all starts fresh.
+
 ## Controls
 
 | | |
@@ -30,6 +43,7 @@ godot --headless --path 'C:\Dev\ukiyo-river' --export-release "Windows Desktop" 
 | Shift | heavy strike, costs 気 |
 | Q | swap weapon |
 | Middle-drag | look around |
+| Escape | menu / pause |
 | Scroll | zoom |
 
 The buttons top right cycle Weather, Time and View, and toggle Drift and Sound.

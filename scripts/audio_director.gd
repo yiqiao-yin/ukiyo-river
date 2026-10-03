@@ -29,6 +29,9 @@ var enabled: bool = true
 ## nothing is heard behind the title card.
 var started: bool = false
 
+## Set from Settings, 0 to 1.
+var master_volume: float = 1.0
+
 # Noise sources. Brown noise is the prototype's integrator: last = (last + 0.02*white)/1.02.
 var _brown_wind: float = 0.0
 var _brown_lap: float = 0.0
@@ -58,6 +61,8 @@ var _crack_time: float = -1.0
 
 
 func _ready() -> void:
+	# The menu pauses the tree; audio has to keep running or it stutters on every pause.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	configure()
 	if player == null:
 		return
@@ -141,7 +146,7 @@ func render(frames: int) -> PackedVector2Array:
 	var k_wind: float = 1.0 - exp(-dt / 0.6)
 	var k_lap: float = 1.0 - exp(-dt / 0.3)
 	var k_master: float = 1.0 - exp(-dt / 0.1)
-	var master_target: float = MASTER_GAIN if (enabled and started) else 0.0
+	var master_target: float = (MASTER_GAIN * master_volume) if (enabled and started) else 0.0
 
 	# Deliberately a fresh array per call rather than a reused member: callers hold onto what
 	# render() hands back, and a shared buffer would be overwritten under them by the next call.

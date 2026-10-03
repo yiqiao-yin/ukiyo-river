@@ -36,6 +36,8 @@ var _distance: float = 12.0
 var _orbit: float = 0.0
 var _head: float = 0.0
 var _dragging: bool = false
+## Set from Settings.
+var look_sensitivity: float = 1.0
 
 
 func _ready() -> void:
@@ -73,14 +75,14 @@ func _unhandled_input(event: InputEvent) -> void:
 					_distance = clampf(_distance * ZOOM_STEP, DIST_MIN, DIST_MAX)
 	elif event is InputEventMouseMotion and _dragging:
 		var motion := event as InputEventMouseMotion
-		_yaw_offset -= motion.relative.x * YAW_PER_PIXEL
+		_yaw_offset -= motion.relative.x * YAW_PER_PIXEL * look_sensitivity
 		if mode == Mode.BOATMAN:
 			_fp_pitch = clampf(
-				_fp_pitch - motion.relative.y * PITCH_PER_PIXEL, FP_PITCH_MIN, FP_PITCH_MAX
+				_fp_pitch - motion.relative.y * PITCH_PER_PIXEL * look_sensitivity, FP_PITCH_MIN, FP_PITCH_MAX
 			)
 		else:
 			_pitch = clampf(
-				_pitch + motion.relative.y * PITCH_PER_PIXEL, PITCH_MIN, PITCH_MAX
+				_pitch + motion.relative.y * PITCH_PER_PIXEL * look_sensitivity, PITCH_MIN, PITCH_MAX
 			)
 
 

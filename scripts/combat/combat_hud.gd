@@ -22,6 +22,14 @@ var player: PlayerCharacter
 var director: EncounterDirector
 var camera: Camera3D
 
+## Floating damage numbers: world position, text, colour, age.
+var _numbers: Array[Dictionary] = []
+## How red the screen edge is, from being hit.
+var _hurt: float = 0.0
+## Pulses the health bar when it changes, so a drop is impossible to miss.
+var _health_pulse: float = 0.0
+var _last_health: float = -1.0
+
 var _notice: String = ""
 var _notice_time: float = 0.0
 var _font: Font
@@ -43,6 +51,8 @@ func setup(
 	camera = view
 	if player != null and not player.notice.is_connected(_on_notice):
 		player.notice.connect(_on_notice)
+		player.dealt.connect(_on_dealt)
+		player.taken.connect(_on_taken)
 
 
 func _on_notice(text: String) -> void:
@@ -50,17 +60,95 @@ func _on_notice(text: String) -> void:
 	_notice_time = 2.6
 
 
+## A blow you landed. Guarded hits read differently, so a wasted swing is obvious.
+func _on_dealt(world_position: Vector3, amount: float, blocked: bool) -> void:
+	_numbers.append({
+		"at": world_position,
+		"text": ("%d blocked" % roundi(amount)) if blocked else str(roundi(amount)),
+		"colour": Color("#9fb0c4") if blocked else Color("#ffd978"),
+		"age": 0.0,
+	})
+
+
+## A blow you took. This is the thing that was invisible before: the screen edge goes red, a
+## number floats off you, and the health bar pulses.
+func _on_taken(amount: float, outcome: int) -> void:
+	if outcome == 2:
+		_numbers.append({
+			"at": Vector3.ZERO, "screen": true, "text": "turned aside",
+			"colour": Color("#ffd978"), "age": 0.0,
+		})
+		return
+	_hurt = 1.0
+	_health_pulse = 1.0
+	_numbers.append({
+		"at": Vector3.ZERO, "screen": true,
+		"text": ("-%d guarded" % roundi(amount)) if outcome == 1 else "-%d" % roundi(amount),
+		"colour": Color("#9fb0c4") if outcome == 1 else Color("#ff6a5a"),
+		"age": 0.0,
+	})
+
+
 func _process(delta: float) -> void:
 	_notice_time = maxf(0.0, _notice_time - delta)
+	_hurt = maxf(0.0, _hurt - delta * 1.8)
+	_health_pulse = maxf(0.0, _health_pulse - delta * 2.2)
+	for number: Dictionary in _numbers:
+		number["age"] = float(number["age"]) + delta
+	_numbers = _numbers.filter(func(n: Dictionary) -> bool: return float(n["age"]) < 1.2)
 	queue_redraw()
 
 
 func _draw() -> void:
 	if player == null or player.stats == null:
 		return
+	_draw_hurt_edge()
 	_draw_player_panel()
 	_draw_enemy_bars()
+	_draw_numbers()
 	_draw_notice()
+
+
+## A red wash around the edge of the screen when you are struck. The health bar alone was too
+## easy to miss while looking at the fight.
+func _draw_hurt_edge() -> void:
+	if _hurt <= 0.0:
+		return
+	var band: float = minf(size.x, size.y) * 0.22
+	var strength: float = _hurt * _hurt
+	var steps: int = 10
+	for i: int in steps:
+		var t: float = float(i) / float(steps)
+		var inset: float = band * t
+		var alpha: float = (1.0 - t) * 0.5 * strength
+		draw_rect(
+			Rect2(inset, inset, size.x - inset * 2.0, size.y - inset * 2.0),
+			Color(0.75, 0.08, 0.06, alpha), false, band / float(steps) + 1.0
+		)
+
+
+## Damage numbers. Ones over enemies follow them in the world; ones for damage you took float
+## up the middle of the screen where you cannot miss them.
+func _draw_numbers() -> void:
+	for number: Dictionary in _numbers:
+		var age: float = number["age"]
+		var fade: float = clampf(1.0 - age / 1.2, 0.0, 1.0)
+		var rise: float = age * 42.0
+		var at: Vector2
+		var font_size: int = 15
+		if bool(number.get("screen", false)):
+			at = Vector2(size.x * 0.5 - 40.0, size.y * 0.42 - rise)
+			font_size = 22
+		else:
+			if camera == null or camera.is_position_behind(number["at"]):
+				continue
+			at = camera.unproject_position(number["at"]) - Vector2(0.0, rise)
+		var colour: Color = number["colour"]
+		# Dark backing, so a number is readable against water or sky.
+		draw_string(_font, at + Vector2(1.5, 1.5), number["text"],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.0, 0.0, 0.0, fade * 0.7))
+		draw_string(_font, at, number["text"],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(colour, fade))
 
 
 ## Bottom left: level, the weapon in hand, and the two pools.
@@ -81,8 +169,13 @@ func _draw_player_panel() -> void:
 		draw_string(_kanji_font, Vector2(panel.end.x - 46.0, y + 2.0), weapon.kanji,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 19, MUTED)
 
+	# The bar flares when it changes, which is the other half of making damage visible.
+	var health_colour: Color = HEALTH_COLOUR.lerp(Color.WHITE, _health_pulse * 0.7)
 	_bar(Rect2(x, panel.position.y + 42.0, 260.0, 14.0),
-		stats.health / maxf(stats.max_health, 1.0), HEALTH_COLOUR)
+		stats.health / maxf(stats.max_health, 1.0), health_colour)
+	if _health_pulse > 0.0:
+		draw_rect(Rect2(x - 2.0, panel.position.y + 40.0, 264.0, 18.0),
+			Color(1.0, 0.4, 0.35, _health_pulse), false, 2.0)
 	draw_string(_font, Vector2(x + 4.0, panel.position.y + 53.0),
 		"%d / %d" % [roundi(stats.health), roundi(stats.max_health)],
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, INK)

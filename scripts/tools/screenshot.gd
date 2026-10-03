@@ -19,6 +19,9 @@ var _main: Node
 
 
 func _ready() -> void:
+	# The menu pauses the tree on startup, so this has to keep counting through a pause or it
+	# would wait forever for frames that never come.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_main = load("res://main.tscn").instantiate()
 	add_child(_main)
 

@@ -38,7 +38,7 @@ const MINCHO_MEDIUM: String = "res://assets/fonts/ShipporiMincho-Medium.ttf"
 @export var mark: Control
 @export var hint: Control
 @export var title: Control
-@export var cast_button: Button
+@export var menu: Menu
 @export var combat_hud: CombatHUD
 ## Wired from main.tscn; the HUD needs it and it lives outside this scene.
 @export var encounters: EncounterDirector
@@ -52,7 +52,12 @@ func _ready() -> void:
 	view_button.pressed.connect(_on_view)
 	drift_button.pressed.connect(_on_drift)
 	sound_button.pressed.connect(_on_sound)
-	cast_button.pressed.connect(_on_cast_off)
+	if menu != null:
+		menu.environment_controller = environment_controller
+		menu.audio_director = audio_director
+		menu.camera = camera
+		menu.boat = boat
+		menu.begin_pressed.connect(_on_cast_off)
 	if combat_hud != null:
 		combat_hud.setup(boat.player if boat != null else null, encounters, camera)
 
@@ -61,13 +66,10 @@ func _ready() -> void:
 
 ## Prototype: the scene is already running behind the veil; Cast off only lifts it, and starts
 ## the sound, which a browser will not play before a gesture anyway.
+## The menu handles its own fade; this is just what starting means elsewhere.
 func _on_cast_off() -> void:
 	if audio_director != null:
 		audio_director.started = true
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tween: Tween = create_tween()
-	tween.tween_property(title, "modulate:a", 0.0, FADE_SECONDS).set_trans(Tween.TRANS_SINE)
-	tween.tween_callback(title.hide)
 
 
 func _on_weather() -> void:
@@ -150,28 +152,27 @@ func _build_theme() -> void:
 	# Title card.
 	for i: int in 3:
 		var glyph: Label = title.get_node("Card/Kanji/Char%d" % i)
-		_style_label(glyph, mincho_bold, 84, Color(INK))
+		_style_label(glyph, mincho_bold, 72, Color(INK))
 		# Prototype: text-shadow 0 0 40px rgba(240,176,90,.25) - lamplight behind the mark.
 		glyph.add_theme_color_override("font_shadow_color", Color(Color(LAMP), 0.25))
-		glyph.add_theme_constant_override("shadow_outline_size", 22)
+		glyph.add_theme_constant_override("shadow_outline_size", 18)
 		glyph.add_theme_constant_override("shadow_offset_x", 0)
 		glyph.add_theme_constant_override("shadow_offset_y", 0)
 	_style_label(title.get_node("Card/Heading"), mincho_medium, 22, Color(INK))
-	_style_label(title.get_node("Card/Blurb"), null, 15, Color(BODY))
-	_style_label(title.get_node("Card/Footnote"), null, 12, Color(SMALL))
+	_style_label(title.get_node("Card/Home/Blurb"), null, 15, Color(BODY))
+	_style_label(title.get_node("Card/Home/Footnote"), null, 12, Color(SMALL))
 
+	# The one lacquered button on the card is the one that starts the game.
+	var begin: Button = title.get_node("Card/Home/Buttons/Begin")
 	var cast_style := _panel_style(Color(LACQUER), 12)
-	cast_style.content_margin_left = 28
-	cast_style.content_margin_right = 28
-	cast_style.content_margin_top = 15
-	cast_style.content_margin_bottom = 15
-	cast_style.border_width_bottom = 0
-	cast_button.add_theme_stylebox_override("normal", cast_style)
-	cast_button.add_theme_stylebox_override("hover", _panel_style(Color(LACQUER).lightened(0.12), 12))
-	cast_button.add_theme_stylebox_override("pressed", _panel_style(Color(LACQUER).darkened(0.12), 12))
-	cast_button.add_theme_color_override("font_color", Color(CAST_INK))
-	cast_button.add_theme_color_override("font_hover_color", Color(CAST_INK))
-	cast_button.add_theme_font_size_override("font_size", 16)
+	cast_style.content_margin_top = 13
+	cast_style.content_margin_bottom = 13
+	begin.add_theme_stylebox_override("normal", cast_style)
+	begin.add_theme_stylebox_override("hover", _panel_style(Color(LACQUER).lightened(0.12), 12))
+	begin.add_theme_stylebox_override("pressed", _panel_style(Color(LACQUER).darkened(0.12), 12))
+	begin.add_theme_color_override("font_color", Color(CAST_INK))
+	begin.add_theme_color_override("font_hover_color", Color(CAST_INK))
+	begin.add_theme_font_size_override("font_size", 16)
 
 
 func _style_label(node: Node, font: FontFile, size: int, color: Color) -> void:

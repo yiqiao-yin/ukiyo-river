@@ -122,17 +122,32 @@ can be held through a flurry instead of buying one free second.
 You cannot strike and guard at once, and the trained enemies - samurai and sohei - cover
 themselves between techniques on the same terms, so they are not simply free to hit.
 
+## Feedback
+
+Early playtesting found the fight legible but silent: health was dropping and nothing said so,
+so a hit that landed and a hit that missed looked the same, and an enemy dying read as having
+died on its own.
+
+- **Damage numbers.** Gold over an enemy you hit, grey and marked *blocked* when his guard took
+  it, red up the middle of the screen when you are hit.
+- **The screen edge goes red** when you take a blow, scaled to how hard.
+- **The health bar flares white** on any change.
+- **Sparks** where a blow is turned aside: bright gold for a parry, fewer and cooler for an
+  ordinary block, so the two read apart without looking at the HUD.
+
 ## How an attack happens
 
 1. Past **z = -150** - a couple of minutes downstream - skiffs start appearing astern.
-2. A skiff closes on the boat faster than you can row, so you cannot simply outrun it, though
-   steering does buy time.
-3. Within 3.2 m the samurai steps across in an arc, clears the gunwale, and is reparented onto
-   the boat so he rides with it.
-4. On deck he closes to his weapon's reach, turns to face you, and swings on a cycle. The first
+2. A skiff closes on the boat. It rows at the boat's own speed plus a closing rate, so you
+   cannot simply outrun it, though steering does buy time.
+3. It comes **alongside** - 1.75 m off the gunwale, lined up parallel - and holds station there
+   for most of a second before anyone commits, so the two hulls are matched and settled.
+4. The samurai **steps across**, a short eased arc just high enough to clear the gunwale, and
+   is reparented onto the boat so he rides with it.
+5. On deck he closes to his weapon's reach, turns to face you, and swings on a cycle. The first
    swing is delayed 1.3-2.2 s and staggered per attacker, so a boarding party cannot land three
    blows on one frame.
-5. You have a 0.7 s mercy window after each hit taken.
+6. You have a 0.7 s mercy window after each hit taken.
 
 Both the size of a wave and the calibre of who is in it scale with how far downstream you are,
 from one Ashigaru near the start to three of the worst by the far end, capped at four aboard.

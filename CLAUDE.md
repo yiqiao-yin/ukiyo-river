@@ -20,6 +20,10 @@ A rainy night boat ride through old Japan, built in Godot. This is a port of an 
   anything visual, render a frame offscreen as well:
   "/mnt/c/Users/eagle/Downloads/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe" --path 'C:\Dev\ukiyo-river' --resolution 1280x720 res://scenes/screenshot.tscn
   It writes shot.png and prints the average frame time.
+- Build a standalone Windows .exe with:
+  "/mnt/c/Users/eagle/Downloads/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe" --headless --path 'C:\Dev\ukiyo-river' --export-release "Windows Desktop" 'C:\Dev\ukiyo-river\build\UkiyoRiver.exe'
+  The preset is in export_presets.cfg; build/ is gitignored because the binary is ~120 MB.
+  Export templates live in %APPDATA%/Godot/export_templates/4.7.2.stable and are already installed.
 - Run git from WSL only
 
 ## Layout

@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://bxmbah4ajvx00"]
+[gd_scene load_steps=23 format=3 uid="uid://bxmbah4ajvx00"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="2_sky"]
@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://scripts/floating_lanterns.gd" id="15_lanterns"]
 [ext_resource type="PackedScene" path="res://scenes/trees.tscn" id="16_trees"]
 [ext_resource type="Script" path="res://scripts/combat/encounter_director.gd" id="17_encounters"]
+[ext_resource type="Script" path="res://scripts/combat/debug_keys.gd" id="18_debug"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("2_sky")
@@ -174,3 +175,9 @@ script = ExtResource("17_encounters")
 boat = NodePath("../Boat")
 player = NodePath("../Boat/Boatman/Player")
 environment_controller = NodePath("../EnvironmentController")
+
+[node name="DebugKeys" type="Node" parent="." node_paths=PackedStringArray("boat", "player", "director")]
+script = ExtResource("18_debug")
+boat = NodePath("../Boat")
+player = NodePath("../Boat/Boatman/Player")
+director = NodePath("../Encounters")

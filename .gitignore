@@ -5,3 +5,6 @@
 # tool output
 /shot.png
 /shot.png.import
+
+# build output
+/build/
